@@ -1,5 +1,4 @@
 import flet as ft
-from flet.core.border_radius import vertical
 
 cliente = 'Maxloc'
 entrega = '25/11'
@@ -17,6 +16,21 @@ class Janela:
         page.window_height = 300
         page.padding = 20
         page.bgcolor = "#F5F5F5"
+
+    def _fundo_grafico(self, page: ft.Page):
+        fundo = ft.Container(
+            width=300,
+            height=250,
+            bgcolor="pink",
+        )
+        page.add(
+            ft.Stack(
+                controls=[
+
+                ]
+            )
+        )
+
 
     def _card_(self, page: ft.Page):
         progresso = escoras_prontas / total_pedido
@@ -260,3 +274,4 @@ class Janela:
     def run(self, page: ft.Page):
         self._configurar_janela(page)
         self._card_(page)
+        self._fundo_grafico(page)
