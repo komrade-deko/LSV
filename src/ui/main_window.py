@@ -252,26 +252,65 @@ class Janela:
                 ]
             )
         )
+        return ft.Stack(
+            expand=True,
+            controls=[
+                ft.Container(
+                    content=card,
+                    bottom=10,
+                    left=200,
+                ),
+                ft.Container(
+                    content= card2,
+                    bottom =10,
+                    left = 550,
+                )
 
-        page.add(
-            ft.Stack(
-                expand = True,
-                controls=[
-                    ft.Container(
-                        content=card,
-                        bottom=0,
-                        left=200
-                    ),
-                    ft.Container(
-                        content=card2,
-                        bottom=0,
-                        left=550
+            ]
+        )
+
+    def _grafico_(self, page: ft.Page):
+        background = ft.Container(
+            width = 850,
+            height = 600,
+            bgcolor="#F5F5F5",
+            border_radius=21,
+            alignment=ft.alignment.bottom_center
+        )
+        linha = ft.Container(
+            width = 1.5,
+            height = 240,
+            bgcolor="#A6A6A6",
+
+        )
+
+        return ft.Stack(
+            expand=True,
+            controls=[
+                ft.Container(
+                    bottom=0,
+                    left=100,
+                    content = ft.Stack(
+                        controls=[
+                            background,
+                            ft.Container(
+                                content=linha,
+                                top=60,
+                                left=100,
+                            )
+                        ]
                     )
                 ]
             )
         )
 
     def run(self, page: ft.Page):
-        self._configurar_janela(page)
-        self._card_(page)
-        self._fundo_grafico(page)
+        self._configurar_janela_(page)
+        layout = ft.Stack(
+            expand=True,
+            controls=[
+                self._grafico_(page),
+                self._card_(page),
+            ]
+        )
+        page.add(layout)
