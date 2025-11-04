@@ -10,27 +10,12 @@ class Janela:
     def __init__(self):
         pass
 
-    def _configurar_janela(self, page: ft.Page):
+    def _configurar_janela_(self, page: ft.Page):
         page.title = "LSV"
-        page.window_width = 250
-        page.window_height = 300
-        page.padding = 20
-        page.bgcolor = "#F5F5F5"
-
-    def _fundo_grafico(self, page: ft.Page):
-        fundo = ft.Container(
-            width=300,
-            height=250,
-            bgcolor="pink",
-        )
-        page.add(
-            ft.Stack(
-                controls=[
-
-                ]
-            )
-        )
-
+        page.window_width = 554
+        page.window_height = 444
+        page.padding = ft.padding.only(left=20, top=20, right=20, bottom=0)
+        page.bgcolor = "#F8F8F8"
 
     def _card_(self, page: ft.Page):
         progresso = escoras_prontas / total_pedido
@@ -121,7 +106,8 @@ class Janela:
                                             ),
                                     ft.Text(
                                         f"{int(progresso * 100)}%",
-                                        size=15, weight="bold",
+                                        size=15,
+                                        weight="bold",
                                         font_family="inter"
                                     ),
                                 ]
@@ -270,6 +256,7 @@ class Janela:
         )
 
     def _grafico_(self, page: ft.Page):
+        dia = '40'
         background = ft.Container(
             width = 850,
             height = 600,
@@ -282,6 +269,13 @@ class Janela:
             height = 240,
             bgcolor="#A6A6A6",
 
+        )
+        texto = ft.Container(
+            content=ft.Text(
+                dia,
+                font_family="inter",
+                size = 10
+            )
         )
 
         return ft.Stack(
@@ -297,11 +291,31 @@ class Janela:
                                 content=linha,
                                 top=60,
                                 left=100,
+                            ),
+                            ft.Container(
+                                content=texto,
+                                top=40,
+                                left=95
                             )
                         ]
                     )
-                ]
-            )
+                )
+            ]
+        )
+    def _logo_(self, page:ft.Page ):
+        lsv = ft.Image(
+                src="src/logo.jpg"
+        )
+        return ft.Stack(
+            controls=[
+                ft.Container(
+                    content=lsv,
+                    top =0,
+                    left=0,
+
+                )
+            ]
+
         )
 
     def run(self, page: ft.Page):
@@ -311,6 +325,7 @@ class Janela:
             controls=[
                 self._grafico_(page),
                 self._card_(page),
+                self._logo_(page),
             ]
         )
         page.add(layout)
