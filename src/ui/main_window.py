@@ -304,14 +304,14 @@ class Janela:
         )
     def _logo_(self, page:ft.Page ):
         lsv = ft.Image(
-                src="src/logo.jpg"
+                src="logo.jpg",
+            width=200,
+            height=200,
         )
         return ft.Stack(
             controls=[
                 ft.Container(
                     content=lsv,
-                    top =0,
-                    left=0,
 
                 )
             ]
