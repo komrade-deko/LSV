@@ -1,4 +1,5 @@
 import flet as ft
+from datetime import date, datetime
 
 cliente = 'Maxloc'
 entrega = '25/11'
@@ -95,7 +96,6 @@ class Janela:
                     ft.Column(
                         spacing=5,
                         controls=[
-                            # Linha com "Progresso:" e percentual
                             ft.Row(
                                 spacing=20,
                                 controls=[
@@ -112,7 +112,6 @@ class Janela:
                                     ),
                                 ]
                             ),
-                            # Barra de progresso embaixo
                             ft.ProgressBar(
                                 width=330,
                                 height=15,
@@ -208,7 +207,6 @@ class Janela:
                     ft.Column(
                         spacing=5,
                         controls=[
-                            # Linha com "Progresso:" e percentual
                             ft.Row(
                                 spacing=20,
                                 controls=[
@@ -224,7 +222,6 @@ class Janela:
                                     ),
                                 ]
                             ),
-                            # Barra de progresso embaixo
                             ft.ProgressBar(
                                 width=330,
                                 height=15,
@@ -302,20 +299,48 @@ class Janela:
                 )
             ]
         )
+
     def _logo_(self, page:ft.Page ):
         lsv = ft.Image(
-                src="logo.jpg",
+            src="logo.jpg",
             width=200,
-            height=200,
+            height=200
         )
         return ft.Stack(
             controls=[
                 ft.Container(
                     content=lsv,
-
+                    right = 50,
+                    top=0
                 )
             ]
+        )
 
+    def _calendario_(self, page:ft.Page):
+        data = date.today()
+        data_formatado = data.strftime("%d/%m")
+        calendario = ft.Container(
+            content=ft.Column(
+                spacing=-5,
+                controls=[
+                    ft.Text('Atividades',
+                            font_family="JosefinSans",
+                            size=35, ),
+                    ft.Text(data_formatado,
+                            font_family="JosefinSans",
+                            size=35)
+                ]
+            )
+        )
+        return ft.Stack(
+        expand=True,
+            controls=[
+                ft.Container(
+                    content= calendario,
+                    top=170,
+                    right=50,
+                )
+            ]
         )
 
     def run(self, page: ft.Page):
@@ -323,9 +348,10 @@ class Janela:
         layout = ft.Stack(
             expand=True,
             controls=[
-                self._grafico_(page),
-                self._card_(page),
+                # self._grafico_(page),
+                # self._card_(page),
                 self._logo_(page),
+                self._calendario_(page)
             ]
         )
         page.add(layout)
