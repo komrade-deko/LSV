@@ -1,11 +1,17 @@
 import flet as ft
 from datetime import date, datetime
 
+
+
 cliente = 'Maxloc'
 entrega = '25/11'
 escoras_prontas = 1
 escoras_falta = 7
 total_pedido = 10
+agenda_cliente = 'Saida de Escoras'
+horario_chegada = '11:00'
+horario_saida = '12:00'
+agenda_pedidos = f'{horario_chegada} - {horario_saida}'
 
 class Janela:
     def __init__(self):
@@ -343,15 +349,49 @@ class Janela:
             ]
         )
 
+    def _atividades_(self, page: ft.Page):
+        agenda = ft.Container(
+            bgcolor="#F9E2CB",
+            padding = ft.padding.only(left=5, top=-2, bottom=3, right="50"),
+                border=ft.border.only(
+                    right=ft.BorderSide(3, "#E47B12")
+        ),
+            content=ft.Column(
+                spacing=0,
+                controls=[
+                    ft.Text(
+                        agenda_cliente,
+                        font_family="inter",
+                        size=20
+                    ),
+                    ft.Text(
+                        agenda_pedidos,
+                        font_family="inter",
+                        size=16
+                    )
+                ]
+            )
+        )
+        return ft.Stack(
+                expand=True,
+                controls=[
+                    ft.Container(
+                        content=agenda,
+                        top= 290,
+                        right=27,
+                    )
+                ]
+        )
     def run(self, page: ft.Page):
         self._configurar_janela_(page)
         layout = ft.Stack(
             expand=True,
             controls=[
-                # self._grafico_(page),
-                # self._card_(page),
+                self._grafico_(page),
+                self._card_(page),
                 self._logo_(page),
-                self._calendario_(page)
+                self._calendario_(page),
+                self._atividades_(page),
             ]
         )
         page.add(layout)
