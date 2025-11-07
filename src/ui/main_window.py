@@ -12,6 +12,8 @@ agenda_cliente = 'Saida de Escoras'
 horario_chegada = '11:00'
 horario_saida = '12:00'
 agenda_pedidos = f'{horario_chegada} - {horario_saida}'
+pedido_total = 500
+data_entrega = '07/10'
 
 class Janela:
     def __init__(self):
@@ -330,10 +332,10 @@ class Janela:
                 spacing=-5,
                 controls=[
                     ft.Text('Atividades',
-                            font_family="JosefinSans",
+                            font_family="Josefin",
                             size=35, ),
                     ft.Text(data_formatado,
-                            font_family="JosefinSans",
+                            font_family="Josefin",
                             size=35)
                 ]
             )
@@ -352,10 +354,10 @@ class Janela:
     def _atividades_(self, page: ft.Page):
         agenda = ft.Container(
             bgcolor="#F9E2CB",
-            padding = ft.padding.only(left=5, top=-2, bottom=3, right="50"),
+            padding = ft.padding.only(left=5, top=-2, bottom=3, right=50),
                 border=ft.border.only(
                     right=ft.BorderSide(3, "#E47B12")
-        ),
+                ),
             content=ft.Column(
                 spacing=0,
                 controls=[
@@ -382,6 +384,85 @@ class Janela:
                     )
                 ]
         )
+
+    def _concluidos_(self, page:ft.Page):
+        titulo = ft.Text(
+            "Concluidos",
+            font_family="Josefin",
+            size=20,
+        )
+        concluidos = ft.Container(
+            bgcolor="#F2F2F2",
+            border_radius= 8,
+            padding=ft.padding.all(12),
+            content=ft.Column(
+                controls=[
+                    ft.Container(
+                        content=ft.Text(
+                            "China",
+                            font_family="inter",
+                            weight="bold",
+                            size=25),
+                            padding = ft.padding.only(
+                            left=-5,
+                            top=-10
+                        ),
+                    ),
+                    ft.Container(
+                        content=ft.Text(
+                            "Total:",
+                            font_family="inter",
+                            size=15
+                        ),
+                        margin=ft.margin.only(
+                            top=-3,
+                            left=-5
+                        ),
+                    ),
+                    ft.Container(
+                      content=ft.Text(
+                          f"{pedido_total} Escora",
+                          font_family="inter",
+                          size=15
+                      ),
+                        margin=ft.margin.only(
+                            top=-15,
+                            left=-5
+                        )
+                    ),
+
+                    ft.Container(
+                        content=ft.Text(
+                            f"Entregue: {data_entrega}",
+                            font_family="inter",
+                            weight="bold",
+                            size=20
+                        ),
+                        margin=ft.margin.only(
+                            top=0,
+                            left=-5
+                        )
+                    ),
+                ]
+            )
+        )
+
+        return ft.Stack(
+            expand=True,
+            controls=[
+            ft.Container(
+                content=titulo,
+                top=100,
+                left=50
+                ),
+            ft.Container(
+                content=concluidos,
+                top=200,
+                left=50
+                )
+            ]
+        )
+
     def run(self, page: ft.Page):
         self._configurar_janela_(page)
         layout = ft.Stack(
@@ -392,6 +473,7 @@ class Janela:
                 self._logo_(page),
                 self._calendario_(page),
                 self._atividades_(page),
+                self._concluidos_(page)
             ]
         )
         page.add(layout)
