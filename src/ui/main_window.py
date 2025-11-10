@@ -463,6 +463,25 @@ class Janela:
             ]
         )
 
+    def _gantt_ (self, page:ft.Page):
+        gantt = ft.ProgressBar(
+            width=330,
+            height=50,
+            border_radius=100,
+            bgcolor="#9196B4",
+            color='#273273'
+            )
+        return ft.Stack(
+            expand=True,
+            controls=[
+                ft.Container(
+                    content=gantt,
+                    top = 150,
+                    left = 200
+                )
+            ]
+        )
+
     def run(self, page: ft.Page):
         self._configurar_janela_(page)
         layout = ft.Stack(
@@ -473,7 +492,8 @@ class Janela:
                 self._logo_(page),
                 self._calendario_(page),
                 self._atividades_(page),
-                self._concluidos_(page)
+                self._concluidos_(page),
+                self._gantt_(page)
             ]
         )
         page.add(layout)
