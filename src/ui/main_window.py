@@ -1,8 +1,6 @@
 import flet as ft
 from datetime import date, datetime
 
-
-
 cliente = 'Maxloc'
 entrega = '25/11'
 escoras_prontas = 1
