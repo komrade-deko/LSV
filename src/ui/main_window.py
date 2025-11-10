@@ -311,15 +311,15 @@ class Janela:
     def _logo_(self, page:ft.Page ):
         lsv = ft.Image(
             src="logo.jpg",
-            width=200,
-            height=200
+            width=150,
+            height=150
         )
         return ft.Stack(
             controls=[
                 ft.Container(
                     content=lsv,
                     right = 50,
-                    top=0
+                    top=-20
                 )
             ]
         )
@@ -333,10 +333,10 @@ class Janela:
                 controls=[
                     ft.Text('Atividades',
                             font_family="Josefin",
-                            size=35, ),
+                            size=30, ),
                     ft.Text(data_formatado,
                             font_family="Josefin",
-                            size=35)
+                            size=30)
                 ]
             )
         )
@@ -345,7 +345,7 @@ class Janela:
             controls=[
                 ft.Container(
                     content= calendario,
-                    top=170,
+                    top=110,
                     right=50,
                 )
             ]
@@ -354,7 +354,7 @@ class Janela:
     def _atividades_(self, page: ft.Page):
         agenda = ft.Container(
             bgcolor="#F9E2CB",
-            padding = ft.padding.only(left=5, top=-2, bottom=3, right=50),
+            padding = ft.padding.only(left=5, top=-2, bottom=3, right=40),
                 border=ft.border.only(
                     right=ft.BorderSide(3, "#E47B12")
                 ),
@@ -364,12 +364,12 @@ class Janela:
                     ft.Text(
                         agenda_cliente,
                         font_family="inter",
-                        size=20
+                        size=18
                     ),
                     ft.Text(
                         agenda_pedidos,
                         font_family="inter",
-                        size=16
+                        size=14
                     )
                 ]
             )
@@ -379,7 +379,7 @@ class Janela:
                 controls=[
                     ft.Container(
                         content=agenda,
-                        top= 290,
+                        top= 220,
                         right=27,
                     )
                 ]
@@ -389,7 +389,7 @@ class Janela:
         titulo = ft.Text(
             "Concluidos",
             font_family="Josefin",
-            size=20,
+            size=30,
         )
         concluidos = ft.Container(
             bgcolor="#F2F2F2",
@@ -452,13 +452,13 @@ class Janela:
             controls=[
             ft.Container(
                 content=titulo,
-                top=100,
-                left=50
+                top=325,
+                right=75
                 ),
             ft.Container(
                 content=concluidos,
-                top=200,
-                left=50
+                top=370,
+                right=50
                 )
             ]
         )
