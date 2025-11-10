@@ -1,5 +1,5 @@
 import flet as ft
-from datetime import date, datetime
+from datetime import date
 
 cliente = 'Maxloc'
 entrega = '25/11'
@@ -24,7 +24,7 @@ class Janela:
         page.padding = ft.padding.only(left=20, top=20, right=20, bottom=0)
         page.bgcolor = "#F8F8F8"
 
-    def _card_(self, page: ft.Page):
+    def _card_(self):
         progresso = escoras_prontas / total_pedido
         card = ft.Container(
             width=300,
@@ -36,13 +36,12 @@ class Janela:
                 spacing=10,
                 controls=[
                     ft.Row(
-                        alignment="spaceBetween",
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         controls=[
                             ft.Text(
                                 'card 1',
                                 size=18,
-                                weight="bold",
-
+                                weight=ft.FontWeight.BOLD,
                             ),
                             ft.Column(
                                 spacing=-5,
@@ -113,7 +112,7 @@ class Janela:
                                     ft.Text(
                                         f"{int(progresso * 100)}%",
                                         size=15,
-                                        weight="bold",
+                                        weight=ft.FontWeight.BOLD,
                                         font_family="inter"
                                     ),
                                 ]
@@ -131,116 +130,7 @@ class Janela:
                 ]
             )
         )
-        card2 = ft.Container(
-            width=300,
-            height=250,
-            padding=ft.padding.only(top=5, right=10, bottom=5, left=10),
-            bgcolor="#E3E3E3",
-            border_radius=10,
-            content=ft.Column(
-                spacing=10,
-                controls=[
-                    ft.Row(
-                        alignment="spaceBetween",
-                        controls=[
-                            ft.Text(
-                                'card 2',
-                                size=18,
-                                weight="bold",
-                                font_family="inter"
-                            ),
-                            ft.Column(
-                                spacing=-5,
-                                controls=[
-                                ft.Text(
-                                    f'Entrega',
-                                    size=16,
-                                    font_family="inter"
-                                    ),
-                                ft.Text(
-                                    entrega,
-                                    size=16,
-                                    font_family="inter"
-                                )
-                                ]
-                            )
 
-                        ]
-                    ),
-                    ft.Column(
-                        spacing=5,
-                        controls=[
-                            ft.Column(
-                                spacing=-5,
-                                controls=[
-                                    ft.Text(
-                                        "Total:",
-                                        font_family="inter"
-                                    ),
-                                    ft.Text(
-                                        f"{total_pedido} Escoras."
-                                    )
-                                ]
-                            ),
-                            ft.Column(
-                                spacing=-5,
-                                controls=[
-                                    ft.Text(
-                                        "Prontas:",
-                                        font_family="inter"
-                                    ),
-                                    ft.Text(
-                                        f"{escoras_prontas} Escoras.",
-                                        font_family="inter"
-                                    )
-                                ]
-                            ),
-                            ft.Column(
-                                spacing=-5,
-                                controls=[
-                                    ft.Text(
-                                        "Faltam:",
-                                        font_family="inter"
-                                    ),
-                                    ft.Text(
-                                        f"{total_pedido - escoras_prontas} Escoras.",
-                                        font_family="inter"
-                                    )
-                                ]
-                            )
-                        ]
-                    ),
-                    ft.Column(
-                        spacing=5,
-                        controls=[
-                            ft.Row(
-                                spacing=20,
-                                controls=[
-                                    ft.Text(
-                                            "Progresso:",
-                                            size=10,
-                                            font_family="inter"
-                                            ),
-                                    ft.Text(
-                                        f"{int(progresso * 100)}%",
-                                        size=15, weight="bold",
-                                        font_family="inter"
-                                    ),
-                                ]
-                            ),
-                            ft.ProgressBar(
-                                width=330,
-                                height=15,
-                                value=progresso,
-                                border_radius=10,
-                                bgcolor="#E3AE78",
-                                color='#E47B12'
-                            )
-                        ]
-                    )
-                ]
-            )
-        )
         return ft.Stack(
             expand=True,
             controls=[
@@ -249,12 +139,6 @@ class Janela:
                     bottom=10,
                     left=200,
                 ),
-                ft.Container(
-                    content= card2,
-                    bottom =10,
-                    left = 550,
-                )
-
             ]
         )
 
@@ -399,7 +283,7 @@ class Janela:
                         content=ft.Text(
                             "China",
                             font_family="inter",
-                            weight="bold",
+                            weight=ft.FontWeight.BOLD,
                             size=25),
                             padding = ft.padding.only(
                             left=-5,
@@ -433,7 +317,7 @@ class Janela:
                         content=ft.Text(
                             f"Entregue: {data_entrega}",
                             font_family="inter",
-                            weight="bold",
+                            weight=ft.FontWeight.BOLD,
                             size=20
                         ),
                         margin=ft.margin.only(
@@ -486,7 +370,7 @@ class Janela:
             expand=True,
             controls=[
                 self._grafico_(page),
-                self._card_(page),
+                self._card_(),
                 self._logo_(page),
                 self._calendario_(page),
                 self._atividades_(page),
