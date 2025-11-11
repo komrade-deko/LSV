@@ -49,7 +49,7 @@ class AdmWindow:
                               alignment=ft.alignment.center_left
                           )
             ),
-            ft.TextButton("Configurações",
+            ft.TextButton("Clientes",
                           width = 500,
                           style=ft.ButtonStyle(
                               color= "black",
@@ -59,6 +59,18 @@ class AdmWindow:
                                   weight=ft.FontWeight.BOLD,
                               ),
                               alignment=ft.alignment.center_left
+                          )
+            ), ft.TextButton("Configurações",
+                          width = 500,
+                          style=ft.ButtonStyle(
+                              color= "black",
+                              text_style=ft.TextStyle(
+                                  font_family="JosefinLight",
+                                  size=16,
+                                  weight=ft.FontWeight.BOLD,
+
+                              ),
+                              alignment=ft.alignment.center_left,
                           )
             ),
             ft.TextButton("Sair",
@@ -93,7 +105,7 @@ class AdmWindow:
 
         return menu
 
-    def _dashboard_(self):
+    def _pedidos_(self):
         menu_superior = ft.Container(
             expand=True,
             bgcolor="#FFF2E5",
@@ -104,58 +116,157 @@ class AdmWindow:
             padding=ft.padding.only(top=10, left=10, right=20),
             content=ft.Column(
                 spacing=20,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.START,
                 controls=[
                     ft.Text(
-                    "Pedidos",
+                        "Pedidos",
                         font_family="JosefinBold",
                         size=22,
-                        text_align=ft.TextAlign.CENTER,
                     ),
-                    ft.Container(
-                        width=300,
-                        height=100,
-                        bgcolor="white",
-                        border_radius=15,
-                        padding=ft.padding.all(10),
-                        border = ft.border.all(1, "#CBCBCB"),
-                            content=ft.Row(
-                                alignment=ft.MainAxisAlignment.START,
-                                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                                spacing=15,
-                                controls=[
-                                    ft.Container(
-                                        ft.Image(
-                                            src="bag.png",
-                                            width=50,
-                                            height=50,
-                                        ),
-                                        margin=ft.margin.only(left=20),
-                                ),
-
-                                    ft.Column(
-                                        spacing=-5,
-                                        controls=[
-                                            ft.Text(
-                                                pedidos_producao,
-                                                font_family="JosefinBold",
-                                                size=26
+                    ft.Row(
+                        spacing=20,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        controls=[
+                            # CARD 1
+                            ft.Container(
+                                width=300,
+                                height=100,
+                                bgcolor="white",
+                                border_radius=15,
+                                padding=ft.padding.all(10),
+                                border=ft.border.all(1, "#CBCBCB"),
+                                content=ft.Row(
+                                    alignment=ft.MainAxisAlignment.START,
+                                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                                    spacing=15,
+                                    controls=[
+                                        ft.Container(
+                                            ft.Image(
+                                                src="loja.svg",
+                                                width=50,
+                                                height=50,
                                             ),
-                                            ft.Text(
-                                                "Pedidos",
-                                                size=16,
-                                                color="#B7B89F",
-                                            )
-                                        ]
-                                    )
-                                ]
-                        )
-                    )
-                ]
+                                            margin=ft.margin.only(left=20),
+                                        ),
+                                        ft.Column(
+                                            spacing=-10,
+                                            alignment=ft.MainAxisAlignment.CENTER,
+                                            controls=[
+                                                ft.Text(
+                                                    "47",
+                                                    font_family="JosefinBold",
+                                                    size=26,
+                                                ),
+                                                ft.Text(
+                                                    "Pedidos",
+                                                    size=16,
+                                                    color="#B7B89F",
+                                                ),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ),
+                            # CARD 2
+                            ft.Container(
+                                width=300,
+                                height=100,
+                                bgcolor="white",
+                                border_radius=15,
+                                padding=ft.padding.all(10),
+                                border=ft.border.all(1, "#CBCBCB"),
+                                content=ft.Row(
+                                    alignment=ft.MainAxisAlignment.START,
+                                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                                    spacing=15,
+                                    controls=[
+                                        ft.Container(
+                                            ft.Image(
+                                                src="calendario.svg",
+                                                width=50,
+                                                height=50,
+                                            ),
+                                            margin=ft.margin.only(left=20),
+                                        ),
+                                        ft.Column(
+                                            spacing=-10,
+                                            alignment=ft.MainAxisAlignment.CENTER,
+                                            controls=[
+                                                ft.Text(
+                                                    "47",
+                                                    font_family="JosefinBold",
+                                                    size=26,
+                                                ),
+                                                ft.Text(
+                                                    "Em Produção",
+                                                    size=16,
+                                                    color="#B7B89F",
+                                                ),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ),
+                            # CARD 3
+                            ft.Container(
+                                width=300,
+                                height=100,
+                                bgcolor="white",
+                                border_radius=15,
+                                padding=ft.padding.all(10),
+                                border=ft.border.all(1, "#CBCBCB"),
+                                content=ft.Row(
+                                    alignment=ft.MainAxisAlignment.START,
+                                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                                    spacing=15,
+                                    controls=[
+                                        ft.Container(
+                                            ft.Image(
+                                                src="caminhao.svg",
+                                                width=50,
+                                                height=50,
+                                            ),
+                                            margin=ft.margin.only(left=20),
+                                        ),
+                                        ft.Column(
+                                            spacing=-10,
+                                            alignment=ft.MainAxisAlignment.CENTER,
+                                            controls=[
+                                                ft.Text(
+                                                    "47",
+                                                    font_family="JosefinBold",
+                                                    size=26,
+                                                ),
+                                                ft.Text(
+                                                    "Em Entrega",
+                                                    size=16,
+                                                    color="#B7B89F",
+                                                ),
+                                            ],
+                                       ),
+                                    ],
+                                ),
+                            ),
+                        ],
+                    ),
+                    ft.Text(
+                        "Graficos",
+                        font_family="JosefinBold",
+                        size=22,
+                    ),
+                ],
             ),
-
         )
         return menu_superior
+
+    def _adicionar_pedidos_ (self):
+        add = ft.FloatingActionButton(
+
+            icon= ft.Icons.ADD,
+            bgcolor = "pink",
+            on_click=lambda e:print("botao de adicionar pedidos clicado"),
+        )
+        return add
 
     def run(self, page: ft.Page):
         self._adm_window_(page)
@@ -164,7 +275,8 @@ class AdmWindow:
             expand=True,
             controls=[
                 self._menu_lateral_(),
-                self._dashboard_()
+                self._pedidos_(),
+                self._adicionar_pedidos_(),
             ]
         )
 
