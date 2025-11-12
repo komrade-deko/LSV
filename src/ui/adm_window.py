@@ -1,4 +1,5 @@
 import flet as ft
+
 pedidos_producao = 47
 
 class AdmWindow:
@@ -108,11 +109,11 @@ class AdmWindow:
     def _pedidos_(self):
         menu_superior = ft.Container(
             expand=True,
-            bgcolor="#FFF2E5",
+            bgcolor="#FDF4F5",
             width=200,
             border_radius=ft.border_radius.only(top_right=20, top_left=20),
             alignment=ft.alignment.top_left,
-            margin=ft.margin.only(top=10, left=10, right=20),
+            margin=ft.margin.only(top=10, left=5, right=10),
             padding=ft.padding.only(top=10, left=10, right=20),
             content=ft.Column(
                 spacing=20,
@@ -259,24 +260,125 @@ class AdmWindow:
         )
         return menu_superior
 
-    def _adicionar_pedidos_ (self):
-        add = ft.FloatingActionButton(
-
-            icon= ft.Icons.ADD,
-            bgcolor = "pink",
-            on_click=lambda e:print("botao de adicionar pedidos clicado"),
+    def _adicionar_pedidos_ (self, page):
+        page.floating_action_button = ft.Container(
+            content=ft.FloatingActionButton(
+                icon=ft.Icons.ADD,
+                bgcolor="#E47B12",
+                on_click=lambda e: self._abrir_modal_pedido_(page)
+            ),
         )
-        return add
+
+    def _abrir_modal_pedido_(self, page):
+        def _fechar_modal_(e):
+            modal.open = False
+            page.update()
+
+        def _salvar_modal(e):
+            pass
+
+        def formatar_data(e):
+            global formato_timer
+
+            valor = e.control.value
+            numeros = ''.join(filter(str.isdigit, valor))[:8]
+
+            formatado = ''
+            if len(numeros) >= 1:
+                formatado += numeros[:2]
+            if len(numeros) >= 3:
+                formatado += '/' + numeros[2:4]
+            if len(numeros) >= 5:
+                formatado += '/' + numeros[4:8]
+
+            e.control.value = formatado
+            e.control.update()
+
+        modal = ft.AlertDialog(
+            modal=True,
+            content=ft.Column(
+                [
+                    ft.Text("Adicionar Pedidos.",
+                            font_family="JosefinBold",
+                            size=20),
+                    ft.TextField(
+                        label="Cliente"
+                    ),
+                    ft.TextField(
+                        label="Data (DD/MM/AAAA)",
+                        on_change=formatar_data
+                    ),
+                    ft.Row(
+                        controls=[
+                            ft.TextField(
+                                label="Qnt.",
+                                width=77
+                            ),
+                            ft.Dropdown(
+                                label="Pedido",
+                                hint_text="Selecione uma opção",
+                                options=[
+                                    ft.dropdown.Option("Escoras"),
+                                    ft.dropdown.Option("Andaime")
+                                ]
+                            ),
+                        ]
+                    ),
+                ],
+                height=200,
+            ),
+
+            actions=[
+                ft.TextButton(
+                    "Salvar",
+                    on_click=_salvar_modal,
+                    style=ft.ButtonStyle(
+                        padding=20,
+                        alignment=ft.alignment.center_left,
+                        color="#EEEEEE",
+                        bgcolor="#273273",
+                        overlay_color="#181F46",
+                        shape=ft.RoundedRectangleBorder(radius=7),
+                        text_style=ft.TextStyle(
+                            size=14,
+                            font_family="inter",
+                        )
+                    )
+                ),
+                ft.TextButton(
+                    "Cancelar",
+                    on_click=_fechar_modal_,
+                    style=ft.ButtonStyle(
+                        padding=20,
+                        alignment=ft.alignment.center,
+                        color="#212121",
+                        bgcolor="#BDBDBD",
+                        overlay_color="#9E9E9E",
+                        shape=ft.RoundedRectangleBorder(radius=7),
+                        text_style=ft.TextStyle(
+                            size=14,
+                            font_family="inter",
+                        )
+                    )
+                )
+            ],
+            shape=ft.RoundedRectangleBorder(
+                radius=ft.border_radius.all(7))
+        )
+
+        if modal not in page.overlay:
+            page.overlay.append(modal)
+        modal.open = True
+        page.update()
 
     def run(self, page: ft.Page):
-        self._adm_window_(page)
-
+        self._adm_window_(page),
+        self._adicionar_pedidos_(page)
         layout = ft.Row(
             expand=True,
             controls=[
                 self._menu_lateral_(),
                 self._pedidos_(),
-                self._adicionar_pedidos_(),
             ]
         )
 
