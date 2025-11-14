@@ -305,15 +305,12 @@ class AdmWindow:
                         label="Cliente"
                     ),
                     ft.TextField(
-                        label="Data (DD/MM/AAAA)",
+                        label="Data de Entrega",
+                        hint_text="(DD/MM/AAAA)",
                         on_change=formatar_data
                     ),
                     ft.Row(
                         controls=[
-                            ft.TextField(
-                                label="Qnt.",
-                                width=77
-                            ),
                             ft.Dropdown(
                                 label="Pedido",
                                 hint_text="Selecione uma opção",
@@ -321,6 +318,10 @@ class AdmWindow:
                                     ft.dropdown.Option("Escoras"),
                                     ft.dropdown.Option("Andaime")
                                 ]
+                            ),
+                            ft.TextField(
+                                label="Qnt.",
+                                width=77
                             ),
                         ]
                     ),
