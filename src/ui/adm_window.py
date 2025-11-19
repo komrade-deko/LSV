@@ -330,6 +330,10 @@ class AdmWindow:
             ),
 
             actions=[
+                ft.IconButton(
+                    icon=ft.Icons.ADD,
+                    on_click=lambda e: print("clicou"),
+                ),
                 ft.TextButton(
                     "Salvar",
                     on_click=_salvar_modal,
