@@ -1,7 +1,5 @@
 import flet as ft
 
-from src.ui.main_window import cliente
-
 pedidos_producao = 47
 
 class AdmWindow:
@@ -298,23 +296,67 @@ class AdmWindow:
             data_val = data_field.value
             produto_val = dropdown_field.value
             quantidade_val = quantidade_field.value
+            erro = False
 
-            if not cliente_val or not data_val or not produto_val or not quantidade_val:
-                print("preecha todos os campos")
+            if not cliente_val:
+                cliente_field.error_text = "⚠️ Campo Obrigatorio"
+                cliente_field.border_color = "#E53935"
+                cliente_field.update()
+                erro = True
+            else:
+                cliente_field.error_text = None
+                cliente_field.border_color = None
+                cliente_field.update()
+
+            if not data_val:
+                data_field.error_text = "⚠️ Campo Obrigatorio"
+                data_field.border_color = "#E53935"
+                data_field.update()
+                erro = True
+            else:
+                data_field.error_text = None
+                data_field.border_color = None
+                data_field.update()
+
+            if not produto_val:
+                dropdown_field.error_text = "⚠️ Campo Obrigatorio"
+                dropdown_field.border_color = "#E53935"
+                dropdown_field.update()
+                erro = True
+            else:
+                dropdown_field.error_text = None
+                dropdown_field.border_color = None
+                dropdown_field.update()
+
+            if not quantidade_val:
+                quantidade_field.error_text = "⚠️ Campo Obrigatorio"
+                quantidade_field.border_color = "#E53935"
+                quantidade_field.update()
+                erro = True
+            else:
+                quantidade_field.error_text = None
+                quantidade_field.border_color = None
+                quantidade_field.update()
+
+            if erro:
                 return
 
             modal.open = False
             page.update()
+            print(cliente_val, data_val, produto_val, quantidade_val)
 
-            print(cliente_val)
-            print(data_val)
-            print(produto_val)
-            print(quantidade_val)
+        def limpar_erro(e):
+            campo = e.control
+            if campo.value.strip():
+                campo.error_text = None
+                campo.border_color = None
+                campo.update()
 
-        cliente_field = ft.TextField(label="Cliente")
-        data_field = ft.TextField(label="Data de Entrega",hint_text="(DD/MM/AAAA)",on_change=formatar_data)
-        dropdown_field = ft.Dropdown(label="Pedido",hint_text="Selecione uma opção",options=[ft.dropdown.Option("Escoras"),ft.dropdown.Option("Andaime")])
-        quantidade_field = ft.TextField(label="Qnt.",width=77)
+
+        cliente_field = ft.TextField(label="Cliente",on_change=limpar_erro)
+        data_field = ft.TextField(label="Data de Entrega",hint_text="(DD/MM/AAAA)",on_change=lambda e: (formatar_data(e), limpar_erro(e)))
+        dropdown_field = ft.Dropdown(label="Pedido",hint_text="Selecione uma opção",options=[ft.dropdown.Option("Escoras"),ft.dropdown.Option("Andaime")],on_change=limpar_erro)
+        quantidade_field = ft.TextField(label="Qnt.",width=77,on_change=limpar_erro)
 
         modal = ft.AlertDialog(
             modal=True,
@@ -322,7 +364,8 @@ class AdmWindow:
                 [
                     ft.Text("Adicionar Pedidos.",
                             font_family="JosefinBold",
-                            size=20),
+                            size=20
+                    ),
                     cliente_field,
                     data_field,
                     ft.Row(
@@ -331,24 +374,27 @@ class AdmWindow:
                                 icon=ft.Icons.ADD,
                                 on_click=lambda e: print("clicou"),
                             ),
-                            dropdown_field,
-                            quantidade_field,
+                            ft.Column(
+                                [dropdown_field],
+                                tight=True
+                            ),
+                            ft.Column(
+                                controls=[quantidade_field],
+                                tight=True
+                            ),
                             ft.IconButton(
                                 icon=ft.Icons.REMOVE,
                                 on_click=lambda e: print("clicou"),
                             ),
-                        ]
+                        ],
+                        vertical_alignment=ft.CrossAxisAlignment.START,
                     ),
                 ],
-                height=200,
-                width=330,
+                spacing=10,
+                tight=True,
+                width= 340
             ),
-
-            actions=[
-                # ft.IconButton(
-                #     icon=ft.Icons.ADD,
-                #     on_click=lambda e: print("clicou"),
-                # ),
+        actions=[
                 ft.TextButton(
                     "Salvar",
                     on_click=_salvar_modal,
@@ -383,7 +429,7 @@ class AdmWindow:
                 )
             ],
             shape=ft.RoundedRectangleBorder(
-                radius=ft.border_radius.all(7))
+            radius=ft.border_radius.all(7))
         )
 
         if modal not in page.overlay:
