@@ -1,5 +1,7 @@
 import flet as ft
 
+from src.ui.main_window import cliente
+
 pedidos_producao = 47
 
 class AdmWindow:
@@ -270,13 +272,6 @@ class AdmWindow:
         )
 
     def _abrir_modal_pedido_(self, page):
-        def _fechar_modal_(e):
-            modal.open = False
-            page.update()
-
-        def _salvar_modal(e):
-            pass
-
         def formatar_data(e):
             global formato_timer
 
@@ -294,6 +289,33 @@ class AdmWindow:
             e.control.value = formatado
             e.control.update()
 
+        def _fechar_modal_(e):
+            modal.open = False
+            page.update()
+
+        def _salvar_modal(e):
+            cliente_val = cliente_field.value
+            data_val = data_field.value
+            produto_val = dropdown_field.value
+            quantidade_val = quantidade_field.value
+
+            if not cliente_val or not data_val or not produto_val or not quantidade_val:
+                print("preecha todos os campos")
+                return
+
+            modal.open = False
+            page.update()
+
+            print(cliente_val)
+            print(data_val)
+            print(produto_val)
+            print(quantidade_val)
+
+        cliente_field = ft.TextField(label="Cliente")
+        data_field = ft.TextField(label="Data de Entrega",hint_text="(DD/MM/AAAA)",on_change=formatar_data)
+        dropdown_field = ft.Dropdown(label="Pedido",hint_text="Selecione uma opção",options=[ft.dropdown.Option("Escoras"),ft.dropdown.Option("Andaime")])
+        quantidade_field = ft.TextField(label="Qnt.",width=77)
+
         modal = ft.AlertDialog(
             modal=True,
             content=ft.Column(
@@ -301,39 +323,32 @@ class AdmWindow:
                     ft.Text("Adicionar Pedidos.",
                             font_family="JosefinBold",
                             size=20),
-                    ft.TextField(
-                        label="Cliente"
-                    ),
-                    ft.TextField(
-                        label="Data de Entrega",
-                        hint_text="(DD/MM/AAAA)",
-                        on_change=formatar_data
-                    ),
+                    cliente_field,
+                    data_field,
                     ft.Row(
                         controls=[
-                            ft.Dropdown(
-                                label="Pedido",
-                                hint_text="Selecione uma opção",
-                                options=[
-                                    ft.dropdown.Option("Escoras"),
-                                    ft.dropdown.Option("Andaime")
-                                ]
+                            ft.IconButton(
+                                icon=ft.Icons.ADD,
+                                on_click=lambda e: print("clicou"),
                             ),
-                            ft.TextField(
-                                label="Qnt.",
-                                width=77
+                            dropdown_field,
+                            quantidade_field,
+                            ft.IconButton(
+                                icon=ft.Icons.REMOVE,
+                                on_click=lambda e: print("clicou"),
                             ),
                         ]
                     ),
                 ],
                 height=200,
+                width=330,
             ),
 
             actions=[
-                ft.IconButton(
-                    icon=ft.Icons.ADD,
-                    on_click=lambda e: print("clicou"),
-                ),
+                # ft.IconButton(
+                #     icon=ft.Icons.ADD,
+                #     on_click=lambda e: print("clicou"),
+                # ),
                 ft.TextButton(
                     "Salvar",
                     on_click=_salvar_modal,
