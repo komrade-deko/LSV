@@ -10,7 +10,7 @@ class AdmWindow:
         page.title = "ADM"
         page.window_width = 554
         page.window_height = 444
-        page.padding = ft.padding.only(left=0, top=0, right=0, bottom=0) # é necessario colocar padding 0 em cada lado para que o python coloque esses cards no ponto zero
+        page.padding = ft.padding.only(left=0, top=0, right=0, bottom=0)
         page.bgcolor = "#F8F8F8"
 
     def _menu_logo_(self):
@@ -272,7 +272,7 @@ class AdmWindow:
     def _abrir_modal_pedido_(self, page):
 
         def formatar_data(e):
-            v = ''.join(filter(str.isdigit, e.control.value))[:8]
+            v = ''.join([c for c in e.control.value if c.isdigit()])[:8]
             e.control.value = (v[:2] + ("/" + v[2:4] if len(v) >= 3 else "") +
                                ("/" + v[4:8] if len(v) >= 5 else ""))
             e.control.update()
@@ -473,7 +473,6 @@ class AdmWindow:
             shape=ft.RoundedRectangleBorder(radius=7)
         )
 
-        # 🟩 IMPORTANTE: usar overlay para evitar conflito com outros diálogos
         page.overlay.append(modal)
 
         modal.open = True
