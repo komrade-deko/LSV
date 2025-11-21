@@ -260,157 +260,179 @@ class AdmWindow:
         )
         return menu_superior
 
-    def _adicionar_pedidos_ (self, page):
+    def _adicionar_pedidos_(self, page):
         page.floating_action_button = ft.Container(
             content=ft.FloatingActionButton(
                 icon=ft.Icons.ADD,
                 bgcolor="#E47B12",
                 on_click=lambda e: self._abrir_modal_pedido_(page)
-            ),
+            )
         )
 
     def _abrir_modal_pedido_(self, page):
+
         def formatar_data(e):
-            valor = e.control.value
-            numeros = ''.join(filter(str.isdigit, valor))[:8]
-
-            formatado = ''
-            if len(numeros) >= 1:
-                formatado += numeros[:2]
-            if len(numeros) >= 3:
-                formatado += '/' + numeros[2:4]
-            if len(numeros) >= 5:
-                formatado += '/' + numeros[4:8]
-
-            e.control.value = formatado
+            v = ''.join(filter(str.isdigit, e.control.value))[:8]
+            e.control.value = (v[:2] + ("/" + v[2:4] if len(v) >= 3 else "") +
+                               ("/" + v[4:8] if len(v) >= 5 else ""))
             e.control.update()
 
-        def _fechar_modal_(e):
+        def limpar_erro(e):
+            c = e.control
+            if c.value and c.value.strip():
+                c.error_text = None
+                c.border_color = None
+                c.update()
+
+        def fechar_modal(e=None):
             modal.open = False
             page.update()
 
-        def limpar_erro(e):
-            campo = e.control
-            if campo.value.strip():
-                campo.error_text = None
-                campo.border_color = None
-                campo.update()
+        opcoes_pedido = ["Escoras", "Andaime", "Sapatas"]
 
-        linhas_container = ft.Column(spacing=5)
+        linhas_container = ft.ListView(spacing=5, height=90, auto_scroll=False)
+
+        def atualizar_opcoes():
+            usadas = {linha.dropdown.value for linha in linhas_container.controls if linha.dropdown.value}
+            for linha in linhas_container.controls:
+                atual = linha.dropdown.value
+                linha.dropdown.options = [
+                    ft.dropdown.Option(text=s)
+                    for s in opcoes_pedido
+                    if s == atual or s not in usadas
+                ]
+
+        def atualizar_botoes():
+            total = len(linhas_container.controls)
+            limite = len(opcoes_pedido)
+
+            for i, linha in enumerate(linhas_container.controls):
+                linha.btn_add.visible = False
+                linha.btn_add.disabled = True
+                linha.btn_add.opacity = 0
+
+                linha.btn_remove.visible = True
+                linha.btn_remove.disabled = (i == 0)
+                linha.btn_remove.opacity = 0 if i == 0 else 1
+
+            if total < limite:
+                ultimo = linhas_container.controls[-1]
+                ultimo.btn_add.visible = True
+                ultimo.btn_add.disabled = False
+                ultimo.btn_add.opacity = 1
+
+            page.update()
 
         def criar_linha():
+            linha = ft.Row(vertical_alignment=ft.CrossAxisAlignment.START)
 
             dropdown = ft.Dropdown(
                 label="Pedido",
                 hint_text="Selecione uma opção",
-                options=[ft.dropdown.Option("Escoras"), ft.dropdown.Option("Andaime")],
-                on_change=limpar_erro
+                options=[ft.dropdown.Option(text=s) for s in opcoes_pedido],
+                on_change=lambda e: (limpar_erro(e), atualizar_opcoes(), atualizar_botoes())
             )
 
-            quantidade = ft.TextField(
-                label="Qnt.",
-                width=77,
-                on_change=limpar_erro
-            )
+            quantidade = ft.TextField(label="Qnt.", width=77, on_change=limpar_erro)
 
-            linha = ft.Row(vertical_alignment=ft.CrossAxisAlignment.START)
+            btn_add = ft.IconButton(icon=ft.Icons.ADD, on_click=lambda e: adicionar_linha())
+            btn_remove = ft.IconButton(icon=ft.Icons.REMOVE, on_click=lambda e, l=linha: remover_linha(l))
 
-            botao_remover = ft.IconButton(
-                icon=ft.Icons.REMOVE,
-                visible=False,
-                on_click=lambda e: remover_linha(linha)
-            )
-
-            botao_add = ft.IconButton(
-                icon=ft.Icons.ADD,
-                on_click=lambda e: adicionar_linha()
-            )
+            add_container = ft.Container(content=btn_add, width=40)
+            remove_container = ft.Container(content=btn_remove, width=40)
 
             linha.controls = [
-                botao_add,
+                add_container,
                 ft.Column([dropdown], tight=True),
                 ft.Column([quantidade], tight=True),
-                botao_remover
+                remove_container
             ]
 
-            # guardamos referências dentro da linha (para remover)
             linha.dropdown = dropdown
             linha.quantidade = quantidade
-            linha.botao_remover = botao_remover
+            linha.btn_add = btn_add
+            linha.btn_remove = btn_remove
 
             return linha
 
         def adicionar_linha():
+            if len(linhas_container.controls) >= len(opcoes_pedido):
+                return
+
             nova = criar_linha()
-
-            if len(linhas_container.controls) >= 1:
-                nova.botao_remover.visible = True
-
             linhas_container.controls.append(nova)
-            page.update()
+
+            atualizar_opcoes()
+            atualizar_botoes()
 
         def remover_linha(linha):
-            if linha in linhas_container.controls:
-                linhas_container.controls.remove(linha)
+            if linha not in linhas_container.controls:
+                return
 
-            if len(linhas_container.controls) == 1:
-                linhas_container.controls[0].botao_remover.visible = False
+            if linhas_container.controls.index(linha) == 0:
+                return
 
-            page.update()
+            linhas_container.controls.remove(linha)
+            atualizar_opcoes()
+            atualizar_botoes()
 
         adicionar_linha()
 
-        cliente_field = ft.TextField(label="Cliente", on_change=limpar_erro)
+        first = linhas_container.controls[0]
+        first.btn_remove.visible = True
+        first.btn_remove.disabled = True
+        first.btn_remove.opacity = 0
 
+        atualizar_opcoes()
+        atualizar_botoes()
+
+        cliente_field = ft.TextField(label="Cliente", on_change=limpar_erro)
         data_field = ft.TextField(
             label="Data de Entrega",
             hint_text="(DD/MM/AAAA)",
             on_change=lambda e: (formatar_data(e), limpar_erro(e))
         )
 
-        def _salvar_modal(e):
-            cliente_val = cliente_field.value
-            data_val = data_field.value
-
+        def salvar_modal(e):
             erro = False
 
-            if not cliente_val:
+            if not cliente_field.value:
                 cliente_field.error_text = "⚠️ Campo Obrigatório"
                 cliente_field.border_color = "#E53935"
                 cliente_field.update()
                 erro = True
 
-            if not data_val:
+            if not data_field.value:
                 data_field.error_text = "⚠️ Campo Obrigatório"
                 data_field.border_color = "#E53935"
                 data_field.update()
                 erro = True
 
-            # valida cada linha dinâmica
+            pedidos = []
             for linha in linhas_container.controls:
                 if not linha.dropdown.value:
                     linha.dropdown.error_text = "⚠️ Obrigatório"
                     linha.dropdown.border_color = "#E53935"
                     linha.dropdown.update()
                     erro = True
-                else:
-                    linha.dropdown.error_text = None
-                    linha.dropdown.border_color = None
-                    linha.dropdown.update()
 
                 if not linha.quantidade.value:
                     linha.quantidade.error_text = "⚠️ Obrigatório"
                     linha.quantidade.border_color = "#E53935"
                     linha.quantidade.update()
                     erro = True
-                else:
-                    linha.quantidade.error_text = None
-                    linha.quantidade.border_color = None
-                    linha.quantidade.update()
+
+                pedidos.append({
+                    "item": linha.dropdown.value,
+                    "qtd": linha.quantidade.value
+                })
 
             if erro:
                 return
 
+            print("Cliente:", cliente_field.value)
+            print("Data de Entrega:", data_field.value)
+            print("Pedidos:", pedidos)
 
             modal.open = False
             page.update()
@@ -419,11 +441,7 @@ class AdmWindow:
             modal=True,
             content=ft.Column(
                 [
-                    ft.Text(
-                        "Adicionar Pedidos.",
-                        font_family="JosefinBold",
-                        size=20
-                    ),
+                    ft.Text("Adicionar Pedidos.", font_family="JosefinBold", size=20),
                     cliente_field,
                     data_field,
                     linhas_container
@@ -433,38 +451,30 @@ class AdmWindow:
                 width=340
             ),
             actions=[
-                ft.TextButton(
-                    "Salvar",
-                    on_click=_salvar_modal,
-                    style=ft.ButtonStyle(
-                        padding=20,
-                        alignment=ft.alignment.center_left,
-                        color="#EEEEEE",
-                        bgcolor="#273273",
-                        overlay_color="#181F46",
-                        shape=ft.RoundedRectangleBorder(radius=7),
-                        text_style=ft.TextStyle(size=14, font_family="inter")
-                    )
-                ),
-                ft.TextButton(
-                    "Cancelar",
-                    on_click=_fechar_modal_,
-                    style=ft.ButtonStyle(
-                        padding=20,
-                        alignment=ft.alignment.center,
-                        color="#212121",
-                        bgcolor="#BDBDBD",
-                        overlay_color="#9E9E9E",
-                        shape=ft.RoundedRectangleBorder(radius=7),
-                        text_style=ft.TextStyle(size=14, font_family="inter")
-                    )
-                ),
+                ft.TextButton("Salvar", on_click=salvar_modal, style=ft.ButtonStyle(
+                    padding=20,
+                    alignment=ft.alignment.center_left,
+                    color="#EEEEEE",
+                    bgcolor="#273273",
+                    overlay_color="#181F46",
+                    shape=ft.RoundedRectangleBorder(radius=7),
+                    text_style=ft.TextStyle(size=14, font_family="inter")
+                )),
+                ft.TextButton("Cancelar", on_click=fechar_modal, style=ft.ButtonStyle(
+                    padding=20,
+                    alignment=ft.alignment.center,
+                    color="#212121",
+                    bgcolor="#BDBDBD",
+                    overlay_color="#9E9E9E",
+                    shape=ft.RoundedRectangleBorder(radius=7),
+                    text_style=ft.TextStyle(size=14, font_family="inter")
+                )),
             ],
             shape=ft.RoundedRectangleBorder(radius=7)
         )
 
-        if modal not in page.overlay:
-            page.overlay.append(modal)
+        # 🟩 IMPORTANTE: usar overlay para evitar conflito com outros diálogos
+        page.overlay.append(modal)
 
         modal.open = True
         page.update()
