@@ -323,6 +323,13 @@ class AdmWindow:
 
             page.update()
 
+        # 🔥 Função para permitir apenas números no campo quantidade
+        def apenas_numeros(e):
+            v = ''.join([c for c in e.control.value if c.isdigit()])
+            e.control.value = v
+            e.control.update()
+            limpar_erro(e)
+
         def criar_linha():
             linha = ft.Row(vertical_alignment=ft.CrossAxisAlignment.START)
 
@@ -333,7 +340,11 @@ class AdmWindow:
                 on_change=lambda e: (limpar_erro(e), atualizar_opcoes(), atualizar_botoes())
             )
 
-            quantidade = ft.TextField(label="Qnt.", width=77, on_change=limpar_erro)
+            quantidade = ft.TextField(
+                label="Qnt.",
+                width=77,
+                on_change=apenas_numeros  # 🔥 aplica o filtro numérico
+            )
 
             btn_add = ft.IconButton(icon=ft.Icons.ADD, on_click=lambda e: adicionar_linha())
             btn_remove = ft.IconButton(icon=ft.Icons.REMOVE, on_click=lambda e, l=linha: remover_linha(l))
