@@ -271,8 +271,6 @@ class AdmWindow:
 
     def _abrir_modal_pedido_(self, page):
         def formatar_data(e):
-            global formato_timer
-
             valor = e.control.value
             numeros = ''.join(filter(str.isdigit, valor))[:8]
 
@@ -291,60 +289,6 @@ class AdmWindow:
             modal.open = False
             page.update()
 
-        def _salvar_modal(e):
-            cliente_val = cliente_field.value
-            data_val = data_field.value
-            produto_val = dropdown_field.value
-            quantidade_val = quantidade_field.value
-            erro = False
-
-            if not cliente_val:
-                cliente_field.error_text = "⚠️ Campo Obrigatorio"
-                cliente_field.border_color = "#E53935"
-                cliente_field.update()
-                erro = True
-            else:
-                cliente_field.error_text = None
-                cliente_field.border_color = None
-                cliente_field.update()
-
-            if not data_val:
-                data_field.error_text = "⚠️ Campo Obrigatorio"
-                data_field.border_color = "#E53935"
-                data_field.update()
-                erro = True
-            else:
-                data_field.error_text = None
-                data_field.border_color = None
-                data_field.update()
-
-            if not produto_val:
-                dropdown_field.error_text = "⚠️ Campo Obrigatorio"
-                dropdown_field.border_color = "#E53935"
-                dropdown_field.update()
-                erro = True
-            else:
-                dropdown_field.error_text = None
-                dropdown_field.border_color = None
-                dropdown_field.update()
-
-            if not quantidade_val:
-                quantidade_field.error_text = "⚠️ Campo Obrigatorio"
-                quantidade_field.border_color = "#E53935"
-                quantidade_field.update()
-                erro = True
-            else:
-                quantidade_field.error_text = None
-                quantidade_field.border_color = None
-                quantidade_field.update()
-
-            if erro:
-                return
-
-            modal.open = False
-            page.update()
-            print(cliente_val, data_val, produto_val, quantidade_val)
-
         def limpar_erro(e):
             campo = e.control
             if campo.value.strip():
@@ -352,49 +296,143 @@ class AdmWindow:
                 campo.border_color = None
                 campo.update()
 
+        linhas_container = ft.Column(spacing=5)
 
-        cliente_field = ft.TextField(label="Cliente",on_change=limpar_erro)
-        data_field = ft.TextField(label="Data de Entrega",hint_text="(DD/MM/AAAA)",on_change=lambda e: (formatar_data(e), limpar_erro(e)))
-        dropdown_field = ft.Dropdown(label="Pedido",hint_text="Selecione uma opção",options=[ft.dropdown.Option("Escoras"),ft.dropdown.Option("Andaime")],on_change=limpar_erro)
-        quantidade_field = ft.TextField(label="Qnt.",width=77,on_change=limpar_erro)
+        def criar_linha():
+
+            dropdown = ft.Dropdown(
+                label="Pedido",
+                hint_text="Selecione uma opção",
+                options=[ft.dropdown.Option("Escoras"), ft.dropdown.Option("Andaime")],
+                on_change=limpar_erro
+            )
+
+            quantidade = ft.TextField(
+                label="Qnt.",
+                width=77,
+                on_change=limpar_erro
+            )
+
+            linha = ft.Row(vertical_alignment=ft.CrossAxisAlignment.START)
+
+            botao_remover = ft.IconButton(
+                icon=ft.Icons.REMOVE,
+                visible=False,
+                on_click=lambda e: remover_linha(linha)
+            )
+
+            botao_add = ft.IconButton(
+                icon=ft.Icons.ADD,
+                on_click=lambda e: adicionar_linha()
+            )
+
+            linha.controls = [
+                botao_add,
+                ft.Column([dropdown], tight=True),
+                ft.Column([quantidade], tight=True),
+                botao_remover
+            ]
+
+            # guardamos referências dentro da linha (para remover)
+            linha.dropdown = dropdown
+            linha.quantidade = quantidade
+            linha.botao_remover = botao_remover
+
+            return linha
+
+        def adicionar_linha():
+            nova = criar_linha()
+
+            if len(linhas_container.controls) >= 1:
+                nova.botao_remover.visible = True
+
+            linhas_container.controls.append(nova)
+            page.update()
+
+        def remover_linha(linha):
+            if linha in linhas_container.controls:
+                linhas_container.controls.remove(linha)
+
+            if len(linhas_container.controls) == 1:
+                linhas_container.controls[0].botao_remover.visible = False
+
+            page.update()
+
+        adicionar_linha()
+
+        cliente_field = ft.TextField(label="Cliente", on_change=limpar_erro)
+
+        data_field = ft.TextField(
+            label="Data de Entrega",
+            hint_text="(DD/MM/AAAA)",
+            on_change=lambda e: (formatar_data(e), limpar_erro(e))
+        )
+
+        def _salvar_modal(e):
+            cliente_val = cliente_field.value
+            data_val = data_field.value
+
+            erro = False
+
+            if not cliente_val:
+                cliente_field.error_text = "⚠️ Campo Obrigatório"
+                cliente_field.border_color = "#E53935"
+                cliente_field.update()
+                erro = True
+
+            if not data_val:
+                data_field.error_text = "⚠️ Campo Obrigatório"
+                data_field.border_color = "#E53935"
+                data_field.update()
+                erro = True
+
+            # valida cada linha dinâmica
+            for linha in linhas_container.controls:
+                if not linha.dropdown.value:
+                    linha.dropdown.error_text = "⚠️ Obrigatório"
+                    linha.dropdown.border_color = "#E53935"
+                    linha.dropdown.update()
+                    erro = True
+                else:
+                    linha.dropdown.error_text = None
+                    linha.dropdown.border_color = None
+                    linha.dropdown.update()
+
+                if not linha.quantidade.value:
+                    linha.quantidade.error_text = "⚠️ Obrigatório"
+                    linha.quantidade.border_color = "#E53935"
+                    linha.quantidade.update()
+                    erro = True
+                else:
+                    linha.quantidade.error_text = None
+                    linha.quantidade.border_color = None
+                    linha.quantidade.update()
+
+            if erro:
+                return
+
+
+            modal.open = False
+            page.update()
 
         modal = ft.AlertDialog(
             modal=True,
             content=ft.Column(
                 [
-                    ft.Text("Adicionar Pedidos.",
-                            font_family="JosefinBold",
-                            size=20
+                    ft.Text(
+                        "Adicionar Pedidos.",
+                        font_family="JosefinBold",
+                        size=20
                     ),
                     cliente_field,
                     data_field,
-                    ft.Row(
-                        controls=[
-                            ft.IconButton(
-                                icon=ft.Icons.ADD,
-                                on_click=lambda e: print("clicou"),
-                            ),
-                            ft.Column(
-                                [dropdown_field],
-                                tight=True
-                            ),
-                            ft.Column(
-                                controls=[quantidade_field],
-                                tight=True
-                            ),
-                            ft.IconButton(
-                                icon=ft.Icons.REMOVE,
-                                on_click=lambda e: print("clicou"),
-                            ),
-                        ],
-                        vertical_alignment=ft.CrossAxisAlignment.START,
-                    ),
+                    linhas_container
                 ],
                 spacing=10,
                 tight=True,
-                width= 340
+                width=340
             ),
-        actions=[
+            actions=[
                 ft.TextButton(
                     "Salvar",
                     on_click=_salvar_modal,
@@ -405,10 +443,7 @@ class AdmWindow:
                         bgcolor="#273273",
                         overlay_color="#181F46",
                         shape=ft.RoundedRectangleBorder(radius=7),
-                        text_style=ft.TextStyle(
-                            size=14,
-                            font_family="inter",
-                        )
+                        text_style=ft.TextStyle(size=14, font_family="inter")
                     )
                 ),
                 ft.TextButton(
@@ -421,19 +456,16 @@ class AdmWindow:
                         bgcolor="#BDBDBD",
                         overlay_color="#9E9E9E",
                         shape=ft.RoundedRectangleBorder(radius=7),
-                        text_style=ft.TextStyle(
-                            size=14,
-                            font_family="inter",
-                        )
+                        text_style=ft.TextStyle(size=14, font_family="inter")
                     )
-                )
+                ),
             ],
-            shape=ft.RoundedRectangleBorder(
-            radius=ft.border_radius.all(7))
+            shape=ft.RoundedRectangleBorder(radius=7)
         )
 
         if modal not in page.overlay:
             page.overlay.append(modal)
+
         modal.open = True
         page.update()
 
