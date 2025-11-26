@@ -1,10 +1,12 @@
 import flet as ft
+import sqlite3
+import os
 
 pedidos_producao = 47
 
 class AdmWindow:
     def __init__(self):
-        pass
+        self.main_content = None
 
     def _adm_window_(self, page: ft.Page):
         page.title = "ADM"
@@ -36,10 +38,23 @@ class AdmWindow:
             )
         )
 
-    def _menu_lateral_(self):
+    def _menu_lateral_(self, page: ft.Page):
+
+        def go_home(e):
+            self.main_content.content = self._pedidos_()
+            self._adicionar_pedidos_(page)
+            self.main_content.update()
+
+        def go_clientes(e):
+            self.main_content.content = self._clientes_()
+            page.floating_action_button = None
+            self.main_content.update()
+            page.update()
+
         links = [
             ft.TextButton("Início",
                           width = 400,
+                          on_click=go_home,
                           style=ft.ButtonStyle(
                               color="black",
                               text_style=ft.TextStyle(
@@ -52,6 +67,7 @@ class AdmWindow:
             ),
             ft.TextButton("Clientes",
                           width = 500,
+                          on_click=go_clientes,
                           style=ft.ButtonStyle(
                               color= "black",
                               text_style=ft.TextStyle(
@@ -61,21 +77,27 @@ class AdmWindow:
                               ),
                               alignment=ft.alignment.center_left
                           )
-            ), ft.TextButton("Configurações",
-                          width = 500,
+            ),
+            ft.TextButton("Configurações",
+                          width=500,
+                          on_click=lambda e: (self.main_content.__setattr__("content", self._config_()),
+                                              setattr(page, "floating_action_button", None),
+                                              self.main_content.update(),
+                                              page.update()
+                                              ),
                           style=ft.ButtonStyle(
-                              color= "black",
+                              color="black",
                               text_style=ft.TextStyle(
                                   font_family="JosefinLight",
                                   size=16,
                                   weight=ft.FontWeight.BOLD,
-
                               ),
-                              alignment=ft.alignment.center_left,
-                          )
-            ),
+                              alignment=ft.alignment.center_left
+                            )
+                          ),
             ft.TextButton("Sair",
                           width = 500,
+                          on_click=lambda e: print("Sair..."),
                           style=ft.ButtonStyle(
                               color= "black",
                               text_style=ft.TextStyle(
@@ -128,7 +150,6 @@ class AdmWindow:
                         spacing=20,
                         alignment=ft.MainAxisAlignment.CENTER,
                         controls=[
-                            # CARD 1
                             ft.Container(
                                 width=300,
                                 height=100,
@@ -168,7 +189,6 @@ class AdmWindow:
                                     ],
                                 ),
                             ),
-                            # CARD 2
                             ft.Container(
                                 width=300,
                                 height=100,
@@ -208,7 +228,6 @@ class AdmWindow:
                                     ],
                                 ),
                             ),
-                            # CARD 3
                             ft.Container(
                                 width=300,
                                 height=100,
@@ -261,12 +280,75 @@ class AdmWindow:
         return menu_superior
 
     def _adicionar_pedidos_(self, page):
-        page.floating_action_button = ft.Container(
-            content=ft.FloatingActionButton(
-                icon=ft.Icons.ADD,
-                bgcolor="#E47B12",
-                on_click=lambda e: self._abrir_modal_pedido_(page)
+        page.floating_action_button = ft.FloatingActionButton(
+            icon=ft.Icons.ADD,
+            bgcolor="#E47B12",
+            on_click=lambda e: self._abrir_modal_pedido_(page)
+        )
+        page.update()
+
+    def _clientes_(self):
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        DB_PATH = os.path.join(BASE_DIR, "database", "clientes.db")
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT id, nome, email, telefone, criado_em FROM clientes")
+        clientes = cursor.fetchall()
+        conn.close()
+
+        rows = []
+        for c in clientes:
+            rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(str(c[0]))),
+                        ft.DataCell(ft.Text(c[1])),
+                        ft.DataCell(ft.Text(c[2] if c[2] else "-")),
+                        ft.DataCell(ft.Text(c[3] if c[3] else "-")),
+                        ft.DataCell(ft.Text(str(c[4]))),
+                    ]
+                )
             )
+
+        tabela = ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("ID")),
+                ft.DataColumn(ft.Text("Nome")),
+                ft.DataColumn(ft.Text("Email")),
+                ft.DataColumn(ft.Text("Telefone")),
+                ft.DataColumn(ft.Text("Criado em")),
+            ],
+            rows=rows,
+            column_spacing=20,
+            heading_row_color="#E0E0E0",
+            border=ft.border.all(1, "#CCCCCC"),
+            border_radius=0
+        )
+
+        return ft.Container(
+            padding=20,
+            content=ft.Column(
+                controls=[
+                    ft.Text("Clientes", size=28, font_family="JosefinBold"),
+                    ft.Container(
+                        content=tabela,
+                        bgcolor="white",
+                        padding=10,
+                        border_radius=10,
+                        border=ft.border.all(1, "#D2D2D2"),
+                        height=500,
+                        width=1000
+                    )
+                ]
+            )
+        )
+
+    def _config_(self):
+        return ft.Container(
+            padding=ft.padding.all(20),
+            content=ft.Text("Configurações", size=28, font_family="JosefinBold")
         )
 
     def _abrir_modal_pedido_(self, page):
@@ -323,7 +405,6 @@ class AdmWindow:
 
             page.update()
 
-        # 🔥 Função para permitir apenas números no campo quantidade
         def apenas_numeros(e):
             v = ''.join([c for c in e.control.value if c.isdigit()])
             e.control.value = v
@@ -485,19 +566,24 @@ class AdmWindow:
         )
 
         page.overlay.append(modal)
-
         modal.open = True
         page.update()
 
     def run(self, page: ft.Page):
-        self._adm_window_(page),
-        self._adicionar_pedidos_(page)
+        self._adm_window_(page)
+
+        self.main_content = ft.Container(
+            expand=True,
+            content=self._pedidos_()
+        )
+
         layout = ft.Row(
             expand=True,
             controls=[
-                self._menu_lateral_(),
-                self._pedidos_(),
+                self._menu_lateral_(page),
+                self.main_content,
             ]
         )
 
         page.add(layout)
+        self._adicionar_pedidos_(page)
