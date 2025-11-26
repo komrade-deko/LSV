@@ -78,9 +78,9 @@ class AdmWindow:
                               alignment=ft.alignment.center_left
                           )
             ),
-            ft.TextButton("Configurações",
+            ft.TextButton("Produtos",
                           width=500,
-                          on_click=lambda e: (self.main_content.__setattr__("content", self._config_()),
+                          on_click=lambda e: (self.main_content.__setattr__("content", self._estoque_()),
                                               setattr(page, "floating_action_button", None),
                                               self.main_content.update(),
                                               page.update()
@@ -345,10 +345,60 @@ class AdmWindow:
             )
         )
 
-    def _config_(self):
+    def _estoque_(self):
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        DB_PATH = os.path.join(BASE_DIR, "database", "clientes.db")
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT id, nome, preco, estoque FROM produtos")
+        clientes = cursor.fetchall()
+        conn.close()
+
+        rows = []
+        for c in clientes:
+            rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(str(c[0]))),
+                        ft.DataCell(ft.Text(c[1])),
+                        ft.DataCell(ft.Text(c[2] if c[2] else "-")),
+                        ft.DataCell(ft.Text(str(c[3]))),
+                    ]
+                )
+            )
+
+        tabela = ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("ID")),
+                ft.DataColumn(ft.Text("Produto")),
+                ft.DataColumn(ft.Text("Preço")),
+                ft.DataColumn(ft.Text("Estoque")),
+            ],
+            rows=rows,
+            column_spacing=20,
+            heading_row_color="#E0E0E0",
+            border=ft.border.all(1, "#CCCCCC"),
+            border_radius=0
+        )
+
         return ft.Container(
-            padding=ft.padding.all(20),
-            content=ft.Text("Configurações", size=28, font_family="JosefinBold")
+            padding=20,
+            content=ft.Column(
+                controls=[
+                    ft.Text("Clientes", size=28, font_family="JosefinBold"),
+                    ft.Container(
+                        content=tabela,
+                        bgcolor="white",
+                        padding=10,
+                        border_radius=10,
+                        border=ft.border.all(1, "#D2D2D2"),
+                        height=500,
+                        width=1000
+                    )
+                ]
+            )
         )
 
     def _abrir_modal_pedido_(self, page):
