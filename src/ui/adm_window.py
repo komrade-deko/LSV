@@ -53,21 +53,20 @@ class AdmWindow:
         )
 
     def _menu_lateral_(self, page: ft.Page):
-
         def go_home(e):
             self.main_content.content = self._pedidos_()
-            self._adicionar_pedidos_(page)
+            set_fab(page, "#E47B12", self._abrir_modal_pedido_)
             self.main_content.update()
 
         def go_clientes(e):
             self.main_content.content = self._clientes_()
-            self._adicionar_clientes_(page)
+            set_fab(page, "pink", self._abrir_modal_clientes_)
             self.main_content.update()
             page.update()
 
         def go_produtos(e):
             self.main_content.content = self._estoque_()
-            self._adicionar_estoque(page)
+            set_fab(page, "green", self._abrir_modal_estoque_)
             self.main_content.update()
             page.update()
 
@@ -116,30 +115,6 @@ class AdmWindow:
         )
 
         return menu
-
-    def _adicionar_pedidos_(self, page):
-        page.floating_action_button = ft.FloatingActionButton(
-            icon=ft.Icons.ADD,
-            bgcolor="#E47B12",
-            on_click=lambda e: self._abrir_modal_pedido_(page)
-        )
-        page.update()
-
-    def _adicionar_clientes_(self, page):
-        page.floating_action_button = ft.FloatingActionButton(
-            icon=ft.Icons.ADD,
-            bgcolor="pink",
-            on_click=lambda e: self._abrir_modal_clientes_(page)
-        )
-        page.update()
-
-    def _adicionar_estoque(self, page):
-        page.floating_action_button = ft.FloatingActionButton(
-            icon=ft.Icons.ADD,
-            bgcolor="green",
-            on_click=lambda e: self._abrir_modal_estoque_(page)
-        )
-        page.update()
 
     def _editar_cliente_(self, page, cliente_id, nome, email, telefone):
         conn, cursor = self.conectar()
@@ -699,36 +674,34 @@ class AdmWindow:
                     ]
                 )
             )
-
-        tabela = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Text("ID")),
-                ft.DataColumn(ft.Text("Produto")),
-                ft.DataColumn(ft.Text("Preço")),
-                ft.DataColumn(ft.Text("Estoque")),
-                ft.DataColumn(ft.Text("Menu")),
-            ],
-            rows=rows,
-            column_spacing=20,
-            heading_row_color="#E0E0E0",
-            border=ft.border.all(1, "#CCCCCC"),
-            border_radius=0
-        )
-
         return ft.Container(
             padding=20,
             content=ft.Column(
                 controls=[
                     ft.Text("Estoque", size=28, font_family="JosefinBold"),
+                    ft.TextField(label="Pesquisar",prefix_icon=ft.Icons.SEARCH,),
                     ft.Container(
-                        content=tabela,
+                        ft.DataTable(
+                            columns=[
+                                ft.DataColumn(ft.Text("ID")),
+                                ft.DataColumn(ft.Text("Produto"))
+                                ,ft.DataColumn(ft.Text("Preço")),
+                                ft.DataColumn(ft.Text("Estoque")),
+                                ft.DataColumn(ft.Text("Menu")),
+                            ],
+                            rows=rows,
+                            column_spacing=20,
+                            heading_row_color="#E0E0E0",
+                            border=ft.border.all(1, "#CCCCCC"),
+                            border_radius=0
+                        ),
                         bgcolor="white",
                         padding=10,
                         border_radius=10,
                         border=ft.border.all(1, "#D2D2D2"),
                         height=500,
                         width=1000
-                    )
+                    ),
                 ]
             )
         )
@@ -780,6 +753,7 @@ class AdmWindow:
             self.page.update()
 
         def executar_exclusao(e, cliente_id, dialog):
+            conn, cursor = self.conectar()
             dialog.open = False
             cursor.execute("DELETE FROM clientes WHERE id = ?", (cliente_id,))
             conn.commit()
@@ -793,6 +767,7 @@ class AdmWindow:
             self._atualizar_tabela()
 
         def montar_rows():
+            conn, cursor = self.conectar()
             if self.filtro_clientes:
                 busca = f"%{self.filtro_clientes}%"
                 cursor.execute("""
@@ -937,4 +912,4 @@ class AdmWindow:
         )
 
         page.add(layout)
-        self._adicionar_pedidos_(page)
+        set_fab(page, "#E47B12", self._abrir_modal_pedido_)

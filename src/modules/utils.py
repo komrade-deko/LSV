@@ -62,3 +62,10 @@ def validar_campos_obrigatorios(*campos):
             valido = False
     return valido
 
+def set_fab(page, color, callback):
+    page.floating_action_button = ft.FloatingActionButton(
+        icon=ft.Icons.ADD,
+        bgcolor=color,
+        on_click=lambda e: callback(page)
+    )
+    page.update()
