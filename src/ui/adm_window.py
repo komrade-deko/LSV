@@ -1,14 +1,26 @@
 import flet as ft
 import sqlite3
 import os
-
-from flet.core.buttons import ButtonStyle
+from src.modules.utils import *
 
 pedidos_producao = 47
+salvar_style= ft.ButtonStyle(padding=20, alignment=ft.alignment.center_left, color="#EEEEEE", bgcolor="#273273", shape=ft.RoundedRectangleBorder(radius=7), text_style=ft.TextStyle(size=14, font_family="inter"))
+cancelar_style = ft.ButtonStyle(padding=20,alignment=ft.alignment.center,color="#212121",bgcolor="#BDBDBD",shape=ft.RoundedRectangleBorder(radius=7),text_style=ft.TextStyle(size=14, font_family="inter"))
+menu_lateral_style = ft.ButtonStyle(color="black",text_style=ft.TextStyle(font_family="JosefinLight",size=16,weight=ft.FontWeight.BOLD),alignment=ft.alignment.center_left)
 
 class AdmWindow:
     def __init__(self):
-        self.main_content = None
+        self.filtro_clientes = ""
+        self.tabela_body = None
+        self.pesquisa_input = None
+
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.DB_PATH = os.path.join(BASE_DIR, "database", "clientes.db")
+
+    def conectar(self):
+        conn = sqlite3.connect(self.DB_PATH)
+        cursor = conn.cursor()
+        return conn, cursor
 
     def _adm_window_(self, page: ft.Page):
         page.title = "ADM"
@@ -53,66 +65,41 @@ class AdmWindow:
             self.main_content.update()
             page.update()
 
-        links = [
-            ft.TextButton("Início",
-                          width = 400,
-                          on_click=go_home,
-                          style=ft.ButtonStyle(
-                              color="black",
-                              text_style=ft.TextStyle(
-                                  font_family="JosefinLight",
-                                  size=16,
-                                  weight=ft.FontWeight.BOLD,
-                              ),
-                              alignment=ft.alignment.center_left
-                          )
-            ),
-            ft.TextButton("Clientes",
-                          width = 500,
-                          on_click=go_clientes,
-                          style=ft.ButtonStyle(
-                              color= "black",
-                              text_style=ft.TextStyle(
-                                  font_family="JosefinLight",
-                                  size=16,
-                                  weight=ft.FontWeight.BOLD,
-                              ),
-                              alignment=ft.alignment.center_left
-                          )
-            ),
-            ft.TextButton("Produtos",
-                          width=500,
-                          on_click=lambda e: (self.main_content.__setattr__("content", self._estoque_()),
-                                              setattr(page, "floating_action_button", None),
-                                              self.main_content.update(),
-                                              page.update()
-                                              ),
-                          style=ft.ButtonStyle(
-                              color="black",
-                              text_style=ft.TextStyle(
-                                  font_family="JosefinLight",
-                                  size=16,
-                                  weight=ft.FontWeight.BOLD,
-                              ),
-                              alignment=ft.alignment.center_left
-                            )
-                          ),
-            ft.TextButton("Sair",
-                          width = 500,
-                          on_click=lambda e: print("Sair..."),
-                          style=ft.ButtonStyle(
-                              color= "black",
-                              text_style=ft.TextStyle(
-                                  font_family="JosefinLight",
-                                  size=16,
-                                  weight=ft.FontWeight.BOLD,
+        def go_produtos(e):
+            self.main_content.content = self._estoque_()
+            self._adicionar_estoque(page)
+            self.main_content.update()
+            page.update()
 
-                              ),
-                              alignment=ft.alignment.center_left,
-                          )
+        links = [
+            ft.TextButton(
+                "Início",
+                width=400,
+                on_click=go_home,
+                style=menu_lateral_style
+            ),
+
+            ft.TextButton(
+                "Clientes",
+                width=500,
+                on_click=go_clientes,
+                style=menu_lateral_style
+            ),
+
+            ft.TextButton(
+                "Produtos",
+                width=500,
+                on_click=go_produtos,
+                style=menu_lateral_style
+            ),
+
+            ft.TextButton(
+                "Sair",
+                width=500,
+                on_click=lambda e: print("Sair..."),
+                style=menu_lateral_style
             )
         ]
-
         menu = ft.Container(
             width=200,
             bgcolor="#E3E3E3",
@@ -129,6 +116,406 @@ class AdmWindow:
         )
 
         return menu
+
+    def _adicionar_pedidos_(self, page):
+        page.floating_action_button = ft.FloatingActionButton(
+            icon=ft.Icons.ADD,
+            bgcolor="#E47B12",
+            on_click=lambda e: self._abrir_modal_pedido_(page)
+        )
+        page.update()
+
+    def _adicionar_clientes_(self, page):
+        page.floating_action_button = ft.FloatingActionButton(
+            icon=ft.Icons.ADD,
+            bgcolor="pink",
+            on_click=lambda e: self._abrir_modal_clientes_(page)
+        )
+        page.update()
+
+    def _adicionar_estoque(self, page):
+        page.floating_action_button = ft.FloatingActionButton(
+            icon=ft.Icons.ADD,
+            bgcolor="green",
+            on_click=lambda e: self._abrir_modal_estoque_(page)
+        )
+        page.update()
+
+    def _editar_cliente_(self, page, cliente_id, nome, email, telefone):
+        conn, cursor = self.conectar()
+
+        nome_cliente = ft.TextField(
+            label="Cliente",
+            value=nome,
+            on_change=limpar_erro
+        )
+
+        email_cliente = ft.TextField(
+            label="Email",
+            value=email if email else "",
+            on_change=limpar_erro
+        )
+
+        telefone_cliente = ft.TextField(
+            label="Telefone",
+            hint_text="(XX) XXXXXXXXX",
+            value=telefone if telefone else "",
+            on_change=formatar_telefone
+        )
+
+        def salvar_modal(e):
+            if not validar_campos_obrigatorios(nome_cliente, telefone_cliente):
+                return
+
+            cursor.execute("""
+                UPDATE clientes
+                SET nome = ?, email = ?, telefone = ?
+                WHERE id = ?
+            """, (
+                nome_cliente.value.strip(),
+                email_cliente.value.strip() if email_cliente.value else None,
+                telefone_cliente.value.strip(),
+                cliente_id
+            ))
+
+            conn.commit()
+            conn.close()
+
+            modal.open = False
+            page.update()
+
+            self.main_content.content = self._clientes_()
+            self.main_content.update()
+
+            modal.open = False
+            page.update()
+
+        modal = ft.AlertDialog(
+            modal=True,
+            content=ft.Column(
+                [
+                    ft.Text("Editar Cliente", font_family="JosefinBold", size=20),
+                    nome_cliente,
+                    email_cliente,
+                    telefone_cliente,
+                ],
+                spacing=10,
+                tight=True,
+                width=340
+            ),
+            actions=[
+                ft.TextButton(
+                    "Salvar",style=salvar_style,on_click=salvar_modal,
+                ),
+                ft.TextButton(
+                    "Cancelar",style=cancelar_style,on_click=lambda e: fechar_modal(modal, page),
+                )
+            ],
+            shape=ft.RoundedRectangleBorder(radius=7)
+        )
+
+        page.overlay.append(modal)
+        modal.open = True
+        page.update()
+
+    def _abrir_modal_pedido_(self, page):
+        opcoes_pedido = [
+            "Bandeja", "Bandenja(quina)", "Escora", "Tripe",
+            "Andaime Tubular", "Andaime Fachadeiro", "Viga Matalica",
+            "Barra de Ancoragem", "Aprumador de Pilar", "Forcado"
+        ]
+
+        linhas_container = ft.ListView(spacing=5, height=90, auto_scroll=False)
+
+        def atualizar_opcoes():
+            usadas = {linha.dropdown.value for linha in linhas_container.controls if linha.dropdown.value}
+            for linha in linhas_container.controls:
+                atual = linha.dropdown.value
+                linha.dropdown.options = [
+                    ft.dropdown.Option(text=s)
+                    for s in opcoes_pedido
+                    if s == atual or s not in usadas
+                ]
+
+        def atualizar_botoes():
+            total = len(linhas_container.controls)
+            limite = len(opcoes_pedido)
+
+            for i, linha in enumerate(linhas_container.controls):
+                linha.btn_add.visible = False
+                linha.btn_add.disabled = True
+                linha.btn_add.opacity = 0
+
+                linha.btn_remove.visible = True
+                linha.btn_remove.disabled = (i == 0)
+                linha.btn_remove.opacity = 0 if i == 0 else 1
+
+            if total < limite:
+                ultimo = linhas_container.controls[-1]
+                ultimo.btn_add.visible = True
+                ultimo.btn_add.disabled = False
+                ultimo.btn_add.opacity = 1
+
+            page.update()
+
+        def criar_linha():
+            linha = ft.Row(vertical_alignment=ft.CrossAxisAlignment.START)
+
+            dropdown = ft.Dropdown(
+                label="Pedido",
+                hint_text="Selecione uma opção",
+                width=180,
+                options=[ft.dropdown.Option(text=s) for s in opcoes_pedido],
+                on_change=lambda e: (limpar_erro(e), atualizar_opcoes(), atualizar_botoes())
+            )
+
+            quantidade = ft.TextField(
+                label="Qnt.",
+                width=77,
+                on_change=lambda e: (apenas_numeros(e), limpar_erro(e))
+            )
+
+            btn_add = ft.IconButton(
+                icon=ft.Icons.ADD,
+                on_click=lambda e: adicionar_linha())
+            btn_remove = ft.IconButton(
+                icon=ft.Icons.REMOVE,
+                on_click=lambda e, l=linha: remover_linha(l))
+
+            add_container = ft.Container(
+                content=btn_add,
+                width=40)
+            remove_container = ft.Container(
+                content=btn_remove,
+                width=40)
+
+            linha.controls = [
+                add_container,
+                ft.Column([dropdown], tight=True),
+                ft.Column([quantidade], tight=True),
+                remove_container
+            ]
+
+            linha.dropdown = dropdown
+            linha.quantidade = quantidade
+            linha.btn_add = btn_add
+            linha.btn_remove = btn_remove
+
+            return linha
+
+        def adicionar_linha():
+            if len(linhas_container.controls) >= len(opcoes_pedido):
+                return
+
+            nova = criar_linha()
+            linhas_container.controls.append(nova)
+
+            atualizar_opcoes()
+            atualizar_botoes()
+
+        def remover_linha(linha):
+            if linha not in linhas_container.controls:
+                return
+
+            if linhas_container.controls.index(linha) == 0:
+                return
+
+            linhas_container.controls.remove(linha)
+            atualizar_opcoes()
+            atualizar_botoes()
+
+        adicionar_linha()
+
+        first = linhas_container.controls[0]
+        first.btn_remove.visible = True
+        first.btn_remove.disabled = True
+        first.btn_remove.opacity = 0
+
+        atualizar_opcoes()
+        atualizar_botoes()
+
+        cliente_field = ft.TextField(label="Cliente", on_change=limpar_erro)
+        data_field = ft.TextField(
+            label="Data de Entrega",
+            hint_text="(DD/MM/AAAA)",
+            on_change=lambda e: (formatar_data(e), limpar_erro(e))
+        )
+
+        def salvar_modal(e):
+            erro = False
+
+            if not validar_campos_obrigatorios(cliente_field, data_field):
+                erro = True
+
+            pedidos = []
+
+            for linha in linhas_container.controls:
+                if not validar_campos_obrigatorios(linha.dropdown, linha.quantidade):
+                    erro = True
+
+                pedidos.append({
+                    "item": linha.dropdown.value,
+                    "qtd": linha.quantidade.value
+                })
+
+            if erro:
+                return
+
+            print("Cliente:", cliente_field.value)
+            print("Data de Entrega:", data_field.value)
+            print("Pedidos:", pedidos)
+
+            modal.open = False
+            page.update()
+
+        modal = ft.AlertDialog(
+            modal=True,
+            content=ft.Column(
+                [
+                    ft.Text("Adicionar Pedidos.", font_family="JosefinBold", size=20),
+                    cliente_field,
+                    data_field,
+                    linhas_container
+                ],
+                spacing=10,
+                tight=True,
+                width=340
+            ),
+            actions=[
+                ft.TextButton("Salvar",style=salvar_style, on_click=salvar_modal),
+                ft.TextButton("Cancelar",style=cancelar_style, on_click=lambda e: fechar_modal(modal, page)),
+            ],
+            shape=ft.RoundedRectangleBorder(radius=7)
+        )
+
+        page.overlay.append(modal)
+        modal.open = True
+        page.update()
+
+    def _abrir_modal_clientes_(self, page):
+        conn, cursor = self.conectar()
+
+        nome_cliente = ft.TextField(
+            label="Cliente",
+            on_change=limpar_erro
+        )
+
+        email_cliente = ft.TextField(
+            label="Email",
+            on_change=limpar_erro
+        )
+
+        telefone_cliente = ft.TextField(
+            label="Telefone",
+            hint_text="(XX) XXXXXXXXX",
+            on_change=formatar_telefone
+        )
+
+        def salvar_modal(e):
+            if not validar_campos_obrigatorios(nome_cliente, telefone_cliente):
+                return
+
+            cursor.execute("""
+                INSERT INTO clientes (nome, email, telefone)
+                VALUES (?, ?, ?)
+            """, (
+                nome_cliente.value.strip(),
+                email_cliente.value.strip() if email_cliente.value else None,
+                telefone_cliente.value.strip()
+            ))
+
+            conn.commit()
+            conn.close()
+
+            fechar_modal(modal, page)
+
+            self.main_content.content = self._clientes_()
+            self.main_content.update()
+
+        modal = ft.AlertDialog(
+            modal=True,
+            content=ft.Column(
+                [
+                    ft.Text("Adicionar Cliente", font_family="JosefinBold", size=20),
+                    nome_cliente,
+                    email_cliente,
+                    telefone_cliente,
+                ],
+                spacing=10,
+                tight=True,
+                width=340
+            ),
+            actions=[
+                ft.TextButton(
+                    "Salvar", style=salvar_style, on_click=salvar_modal
+                ),
+                ft.TextButton(
+                    "Cancelar", style=cancelar_style,
+                    on_click=lambda e: fechar_modal(modal, page)
+                )
+            ],
+            shape=ft.RoundedRectangleBorder(radius=7)
+        )
+
+        page.overlay.append(modal)
+        modal.open = True
+        page.update()
+
+    def _abrir_modal_estoque_(self, page):
+        produto = ft.TextField(
+            label="Produto",
+            on_change=limpar_erro
+        )
+
+        preco = ft.TextField(
+            label="Preço",
+            prefix_text="R$",
+            on_change=limpar_erro
+        )
+
+        estoque = ft.TextField(
+            label = "Estoque",
+            on_change=lambda e: (apenas_numeros(e), limpar_erro(e))
+        )
+
+        def salvar_modal(e):
+            if not validar_campos_obrigatorios(produto, preco, estoque):
+                return
+
+            self.main_content.content = self._clientes_()
+            self.main_content.update()
+
+        modal = ft.AlertDialog(
+            modal=True,
+            content=ft.Column(
+                [
+                    ft.Text("Adicionar Produto", font_family="JosefinBold", size=20),
+                    produto,
+                    preco,
+                    estoque
+                ],
+                spacing=10,
+                tight=True,
+                width=340
+            ),
+            actions=[
+                ft.TextButton(
+                    "Salvar",
+                    on_click=salvar_modal,
+                    style=salvar_style,
+                ),
+                ft.TextButton(
+                    "Cancelar",
+                    on_click=lambda e: fechar_modal(modal, page),
+                    style=cancelar_style,
+                )
+            ],
+            shape=ft.RoundedRectangleBorder(radius=7)
+        )
+
+        page.overlay.append(modal)
+        modal.open = True
+        page.update()
 
     def _pedidos_(self):
         menu_superior = ft.Container(
@@ -265,7 +652,7 @@ class AdmWindow:
                                                     color="#B7B89F",
                                                 ),
                                             ],
-                                       ),
+                                        ),
                                     ],
                                 ),
                             ),
@@ -281,43 +668,34 @@ class AdmWindow:
         )
         return menu_superior
 
-    def _adicionar_pedidos_(self, page):
-        page.floating_action_button = ft.FloatingActionButton(
-            icon=ft.Icons.ADD,
-            bgcolor="#E47B12",
-            on_click=lambda e: self._abrir_modal_pedido_(page)
-        )
-        page.update()
-
-    def _adicionar_clientes_(self, page):
-        page.floating_action_button = ft.FloatingActionButton(
-            icon=ft.Icons.ADD,
-            bgcolor="pink",
-            on_click=lambda e: self._abrir_modal_clientes_(page)
-
-        )
-        page.update()
-
     def _estoque_(self):
-        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        DB_PATH = os.path.join(BASE_DIR, "database", "clientes.db")
-
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn, cursor = self.conectar()
 
         cursor.execute("SELECT id, nome, preco, estoque FROM produtos")
         clientes = cursor.fetchall()
         conn.close()
+
+        menu = ft.PopupMenuButton(
+            items=[
+                ft.PopupMenuItem(
+                    text="Editar",
+                ),
+                ft.PopupMenuItem(
+                    text="Apagar",
+                ),
+            ]
+        )
 
         rows = []
         for c in clientes:
             rows.append(
                 ft.DataRow(
                     cells=[
-                        ft.DataCell(ft.Text(str(c[0]))),
-                        ft.DataCell(ft.Text(c[1])),
-                        ft.DataCell(ft.Text(c[2] if c[2] else "-")),
-                        ft.DataCell(ft.Text(str(c[3]))),
+                        ft.DataCell(ft.Container(ft.Text(str(c[0])), width=50)),
+                        ft.DataCell(ft.Container(ft.Text(c[1]), width=200)),
+                        ft.DataCell(ft.Container(ft.Text(c[2] if c[2] else "-"), width=250)),
+                        ft.DataCell(ft.Container(ft.Text(str(c[3])), width=150)),
+                        ft.DataCell(menu),
                     ]
                 )
             )
@@ -328,629 +706,6 @@ class AdmWindow:
                 ft.DataColumn(ft.Text("Produto")),
                 ft.DataColumn(ft.Text("Preço")),
                 ft.DataColumn(ft.Text("Estoque")),
-            ],
-            rows=rows,
-            column_spacing=20,
-            heading_row_color="#E0E0E0",
-            border=ft.border.all(1, "#CCCCCC"),
-            border_radius=0
-        )
-
-        return ft.Container(
-            padding=20,
-            content=ft.Column(
-                controls=[
-                    ft.Text("Clientes", size=28, font_family="JosefinBold"),
-                    ft.Container(
-                        content=tabela,
-                        bgcolor="white",
-                        padding=10,
-                        border_radius=10,
-                        border=ft.border.all(1, "#D2D2D2"),
-                        height=500,
-                        width=1000
-                    )
-                ]
-            )
-        )
-
-    def _editar_cliente_(self, page, cliente_id, nome, email, telefone):
-        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        DB_PATH = os.path.join(BASE_DIR, "database", "clientes.db")
-
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        def limpar_erro(e):
-            c = e.control
-            if c.value and c.value.strip():
-                c.error_text = None
-                c.border_color = None
-                c.update()
-
-        def fechar_modal(e=None):
-            modal.open = False
-            page.update()
-
-        def formatar_telefone(e):
-            v = ''.join([c for c in e.control.value if c.isdigit()])[:11]
-
-            if len(v) >= 1:
-                v = "(" + v
-            if len(v) >= 3:
-                v = v[:3] + ") " + v[3:]
-            if len(v) >= 6:
-                v = v[:6] + v[6:]
-
-            e.control.value = v
-            e.control.update()
-            limpar_erro(e)
-
-        nome_cliente = ft.TextField(
-            label="Cliente",
-            value=nome,
-            on_change=limpar_erro
-        )
-
-        email_cliente = ft.TextField(
-            label="Email",
-            value=email if email else "",
-            on_change=limpar_erro
-        )
-
-        telefone_cliente = ft.TextField(
-            label="Telefone",
-            hint_text="(XX) XXXXXXXXX",
-            value=telefone if telefone else "",
-            on_change=formatar_telefone
-        )
-
-        def salvar_modal(e):
-            erro = False
-
-            if not nome_cliente.value:
-                nome_cliente.error_text = "⚠️ Campo Obrigatório"
-                nome_cliente.border_color = "#E53935"
-                nome_cliente.update()
-                erro = True
-
-            if not telefone_cliente.value:
-                telefone_cliente.error_text = "⚠️ Campo Obrigatório"
-                telefone_cliente.border_color = "#E53935"
-                telefone_cliente.update()
-                erro = True
-
-            if erro:
-                return
-
-            cursor.execute("""
-                UPDATE clientes
-                SET nome = ?, email = ?, telefone = ?
-                WHERE id = ?
-            """, (
-                nome_cliente.value.strip(),
-                email_cliente.value.strip() if email_cliente.value else None,
-                telefone_cliente.value.strip(),
-                cliente_id
-            ))
-
-            conn.commit()
-            conn.close()
-
-            modal.open = False
-            page.update()
-
-            self.main_content.content = self._clientes_()
-            self.main_content.update()
-
-            modal.open = False
-            page.update()
-
-        modal = ft.AlertDialog(
-            modal=True,
-            content=ft.Column(
-                [
-                    ft.Text("Editar Cliente", font_family="JosefinBold", size=20),
-                    nome_cliente,
-                    email_cliente,
-                    telefone_cliente,
-                ],
-                spacing=10,
-                tight=True,
-                width=340
-            ),
-            actions=[
-                ft.TextButton(
-                    "Salvar",
-                    on_click=salvar_modal,
-                    style=ft.ButtonStyle(
-                        padding=20,
-                        alignment=ft.alignment.center_left,
-                        color="#EEEEEE",
-                        bgcolor="#273273",
-                        shape=ft.RoundedRectangleBorder(radius=7),
-                        text_style=ft.TextStyle(size=14, font_family="inter")
-                    )
-                ),
-                ft.TextButton(
-                    "Cancelar",
-                    on_click=fechar_modal,
-                    style=ft.ButtonStyle(
-                        padding=20,
-                        alignment=ft.alignment.center,
-                        color="#212121",
-                        bgcolor="#BDBDBD",
-                        shape=ft.RoundedRectangleBorder(radius=7),
-                        text_style=ft.TextStyle(size=14, font_family="inter")
-                    )
-                )
-            ],
-            shape=ft.RoundedRectangleBorder(radius=7)
-        )
-
-        page.overlay.append(modal)
-        modal.open = True
-        page.update()
-
-    def _abrir_modal_pedido_(self, page):
-
-        def formatar_data(e):
-            v = ''.join([c for c in e.control.value if c.isdigit()])[:8]
-            e.control.value = (v[:2] + ("/" + v[2:4] if len(v) >= 3 else "") +
-                               ("/" + v[4:8] if len(v) >= 5 else ""))
-            e.control.update()
-
-        def limpar_erro(e):
-            c = e.control
-            if c.value and c.value.strip():
-                c.error_text = None
-                c.border_color = None
-                c.update()
-
-        def fechar_modal(e=None):
-            modal.open = False
-            page.update()
-
-        opcoes_pedido = ["Escoras", "Andaime", "Sapatas"]
-
-        linhas_container = ft.ListView(spacing=5, height=90, auto_scroll=False)
-
-        def atualizar_opcoes():
-            usadas = {linha.dropdown.value for linha in linhas_container.controls if linha.dropdown.value}
-            for linha in linhas_container.controls:
-                atual = linha.dropdown.value
-                linha.dropdown.options = [
-                    ft.dropdown.Option(text=s)
-                    for s in opcoes_pedido
-                    if s == atual or s not in usadas
-                ]
-
-        def atualizar_botoes():
-            total = len(linhas_container.controls)
-            limite = len(opcoes_pedido)
-
-            for i, linha in enumerate(linhas_container.controls):
-                linha.btn_add.visible = False
-                linha.btn_add.disabled = True
-                linha.btn_add.opacity = 0
-
-                linha.btn_remove.visible = True
-                linha.btn_remove.disabled = (i == 0)
-                linha.btn_remove.opacity = 0 if i == 0 else 1
-
-            if total < limite:
-                ultimo = linhas_container.controls[-1]
-                ultimo.btn_add.visible = True
-                ultimo.btn_add.disabled = False
-                ultimo.btn_add.opacity = 1
-
-            page.update()
-
-        def apenas_numeros(e):
-            v = ''.join([c for c in e.control.value if c.isdigit()])
-            e.control.value = v
-            e.control.update()
-            limpar_erro(e)
-
-        def criar_linha():
-            linha = ft.Row(vertical_alignment=ft.CrossAxisAlignment.START)
-
-            dropdown = ft.Dropdown(
-                label="Pedido",
-                hint_text="Selecione uma opção",
-                options=[ft.dropdown.Option(text=s) for s in opcoes_pedido],
-                on_change=lambda e: (limpar_erro(e), atualizar_opcoes(), atualizar_botoes())
-            )
-
-            quantidade = ft.TextField(
-                label="Qnt.",
-                width=77,
-                on_change=apenas_numeros
-            )
-
-            btn_add = ft.IconButton(icon=ft.Icons.ADD, on_click=lambda e: adicionar_linha())
-            btn_remove = ft.IconButton(icon=ft.Icons.REMOVE, on_click=lambda e, l=linha: remover_linha(l))
-
-            add_container = ft.Container(content=btn_add, width=40)
-            remove_container = ft.Container(content=btn_remove, width=40)
-
-            linha.controls = [
-                add_container,
-                ft.Column([dropdown], tight=True),
-                ft.Column([quantidade], tight=True),
-                remove_container
-            ]
-
-            linha.dropdown = dropdown
-            linha.quantidade = quantidade
-            linha.btn_add = btn_add
-            linha.btn_remove = btn_remove
-
-            return linha
-
-        def adicionar_linha():
-            if len(linhas_container.controls) >= len(opcoes_pedido):
-                return
-
-            nova = criar_linha()
-            linhas_container.controls.append(nova)
-
-            atualizar_opcoes()
-            atualizar_botoes()
-
-        def remover_linha(linha):
-            if linha not in linhas_container.controls:
-                return
-
-            if linhas_container.controls.index(linha) == 0:
-                return
-
-            linhas_container.controls.remove(linha)
-            atualizar_opcoes()
-            atualizar_botoes()
-
-        adicionar_linha()
-
-        first = linhas_container.controls[0]
-        first.btn_remove.visible = True
-        first.btn_remove.disabled = True
-        first.btn_remove.opacity = 0
-
-        atualizar_opcoes()
-        atualizar_botoes()
-
-        cliente_field = ft.TextField(label="Cliente", on_change=limpar_erro)
-        data_field = ft.TextField(
-            label="Data de Entrega",
-            hint_text="(DD/MM/AAAA)",
-            on_change=lambda e: (formatar_data(e), limpar_erro(e))
-        )
-
-        def salvar_modal(e):
-            erro = False
-
-            if not cliente_field.value:
-                cliente_field.error_text = "⚠️ Campo Obrigatório"
-                cliente_field.border_color = "#E53935"
-                cliente_field.update()
-                erro = True
-
-            if not data_field.value:
-                data_field.error_text = "⚠️ Campo Obrigatório"
-                data_field.border_color = "#E53935"
-                data_field.update()
-                erro = True
-
-            pedidos = []
-            for linha in linhas_container.controls:
-                if not linha.dropdown.value:
-                    linha.dropdown.error_text = "⚠️ Obrigatório"
-                    linha.dropdown.border_color = "#E53935"
-                    linha.dropdown.update()
-                    erro = True
-
-                if not linha.quantidade.value:
-                    linha.quantidade.error_text = "⚠️ Obrigatório"
-                    linha.quantidade.border_color = "#E53935"
-                    linha.quantidade.update()
-                    erro = True
-
-                pedidos.append({
-                    "item": linha.dropdown.value,
-                    "qtd": linha.quantidade.value
-                })
-
-            if erro:
-                return
-
-            print("Cliente:", cliente_field.value)
-            print("Data de Entrega:", data_field.value)
-            print("Pedidos:", pedidos)
-
-            modal.open = False
-            page.update()
-
-        modal = ft.AlertDialog(
-            modal=True,
-            content=ft.Column(
-                [
-                    ft.Text("Adicionar Pedidos.", font_family="JosefinBold", size=20),
-                    cliente_field,
-                    data_field,
-                    linhas_container
-                ],
-                spacing=10,
-                tight=True,
-                width=340
-            ),
-            actions=[
-                ft.TextButton("Salvar", on_click=salvar_modal, style=ft.ButtonStyle(
-                    padding=20,
-                    alignment=ft.alignment.center_left,
-                    color="#EEEEEE",
-                    bgcolor="#273273",
-                    overlay_color="#181F46",
-                    shape=ft.RoundedRectangleBorder(radius=7),
-                    text_style=ft.TextStyle(size=14, font_family="inter")
-                )),
-                ft.TextButton("Cancelar", on_click=fechar_modal, style=ft.ButtonStyle(
-                    padding=20,
-                    alignment=ft.alignment.center,
-                    color="#212121",
-                    bgcolor="#BDBDBD",
-                    overlay_color="#9E9E9E",
-                    shape=ft.RoundedRectangleBorder(radius=7),
-                    text_style=ft.TextStyle(size=14, font_family="inter")
-                )),
-            ],
-            shape=ft.RoundedRectangleBorder(radius=7)
-        )
-
-        page.overlay.append(modal)
-        modal.open = True
-        page.update()
-
-    def _abrir_modal_clientes_(self, page):
-
-        def limpar_erro(e):
-            c = e.control
-            if c.value and c.value.strip():
-                c.error_text = None
-                c.border_color = None
-                c.update()
-
-        def fechar_modal(e=None):
-            modal.open = False
-            page.update()
-
-        def formatar_telefone(e):
-            v = ''.join([c for c in e.control.value if c.isdigit()])[:11]  # máximo 11 dígitos
-
-            if len(v) >= 1:
-                v = "(" + v
-            if len(v) >= 3:
-                v = v[:3] + ") " + v[3:]
-            if len(v) >= 6:
-                v = v[:6] + v[6:]
-
-            e.control.value = v
-            e.control.update()
-            limpar_erro(e)
-
-        nome_cliente = ft.TextField(
-            label="Cliente",
-            on_change=limpar_erro
-        )
-
-        email_cliente = ft.TextField(
-            label="Email",
-            on_change=limpar_erro
-        )
-
-        telefone_cliente = ft.TextField(
-            label="Telefoene",
-            hint_text="(XX) XXXXXXXXX",
-            on_change=formatar_telefone
-        )
-
-        def salvar_modal(e):
-            erro = False
-
-            if not nome_cliente.value:
-                nome_cliente.error_text = "⚠️ Campo Obrigatório"
-                nome_cliente.border_color = "#E53935"
-                nome_cliente.update()
-                erro = True
-
-            if not telefone_cliente.value:
-                telefone_cliente.error_text = "⚠️ Campo Obrigatório"
-                telefone_cliente.border_color = "#E53935"
-                telefone_cliente.update()
-                erro = True
-
-            if erro:
-                return
-
-            BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            DB_PATH = os.path.join(BASE_DIR, "database", "clientes.db")
-
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                INSERT INTO clientes (nome, email, telefone)
-                VALUES (?, ?, ?)
-            """, (
-                nome_cliente.value.strip(),
-                email_cliente.value.strip() if email_cliente.value else None,
-                telefone_cliente.value.strip()
-            ))
-
-            conn.commit()
-            conn.close()
-
-            modal.open = False
-            page.update()
-
-            self.main_content.content = self._clientes_()
-            self.main_content.update()
-
-        modal = ft.AlertDialog(
-            modal=True,
-            content=ft.Column(
-                [
-                    ft.Text("Adicionar Cliente", font_family="JosefinBold", size=20),
-
-                    nome_cliente,
-                    email_cliente,
-                    telefone_cliente,
-                ],
-                spacing=10,
-                tight=True,
-                width=340
-            ),
-            actions=[
-                ft.TextButton(
-                    "Salvar",
-                    on_click=salvar_modal,
-                    style=ft.ButtonStyle(
-                        padding=20,
-                        alignment=ft.alignment.center_left,
-                        color="#EEEEEE",
-                        bgcolor="#273273",
-                        shape=ft.RoundedRectangleBorder(radius=7),
-                        text_style=ft.TextStyle(size=14, font_family="inter")
-                    )
-                ),
-                ft.TextButton(
-                    "Cancelar",
-                    on_click=fechar_modal,
-                    style=ft.ButtonStyle(
-                        padding=20,
-                        alignment=ft.alignment.center,
-                        color="#212121",
-                        bgcolor="#BDBDBD",
-                        shape=ft.RoundedRectangleBorder(radius=7),
-                        text_style=ft.TextStyle(size=14, font_family="inter")
-                    )
-                )
-            ],
-            shape=ft.RoundedRectangleBorder(radius=7)
-        )
-
-        page.overlay.append(modal)
-        modal.open = True
-        page.update()
-
-    def _clientes_(self):
-        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        DB_PATH = os.path.join(BASE_DIR, "database", "clientes.db")
-
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT id, nome, email, telefone, criado_em FROM clientes")
-        clientes = cursor.fetchall()
-        conn.close()
-
-        def confirmar_excluir(cliente_id, cliente_nome):
-            confirm_dialog = ft.AlertDialog(
-                modal=True,
-                title=ft.Text("Confirmar exclusão", font_family="JosefinBold", size=20),
-                content=ft.Text(f"Tem certeza que deseja apagar o cliente '{cliente_nome}'?", font_family="inter"),
-                actions=[
-                    ft.TextButton(
-                        "Cancelar",
-                        on_click=lambda e: fechar_confirm(e, confirm_dialog),
-                        style=ButtonStyle(
-                            padding=20,
-                            alignment=ft.alignment.center_left,
-                            color="#212121",
-                            bgcolor="#BDBDBD",
-                            shape=ft.RoundedRectangleBorder(radius=7),
-                            text_style=ft.TextStyle(size=14, font_family="inter")
-                        )
-                    ),
-                    ft.TextButton(
-                        "Apagar",
-                        on_click=lambda e: executar_exclusao(e, cliente_id, confirm_dialog),
-                        style=ft.ButtonStyle(
-                            padding=20,
-                            alignment=ft.alignment.center_left,
-                            color="#EEEEEE",
-                            bgcolor="#E53935",
-                            shape=ft.RoundedRectangleBorder(radius=7),
-                            text_style=ft.TextStyle(size=14, font_family="inter")
-                        )
-                    ),
-                ],
-                actions_alignment="end",
-            )
-
-            self.page.overlay.append(confirm_dialog)
-            confirm_dialog.open = True
-            self.page.update()
-
-        def fechar_confirm(e, dialog):
-            dialog.open = False
-            self.page.update()
-
-        def executar_exclusao(e, cliente_id, dialog):
-            dialog.open = False
-
-            BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            DB_PATH = os.path.join(BASE_DIR, "database", "clientes.db")
-
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM clientes WHERE id = ?", (cliente_id,))
-            conn.commit()
-            conn.close()
-
-            self.main_content.content = self._clientes_()
-            self.main_content.update()
-
-            self.page.update()
-
-        rows = []
-        for c in clientes:
-            cliente_id = c[0]
-            cliente_nome = c[1]
-
-            menu = ft.PopupMenuButton(
-                items=[
-                    ft.PopupMenuItem(
-                        text="Editar",
-                        on_click=lambda e,cid=cliente_id,cn=c[1],ce=c[2],ct=c[3]: self._editar_cliente_(self.page, cid,
-                                                                                                        cn, ce, ct)
-                    ),
-                    ft.PopupMenuItem(
-                        text="Apagar",
-                        on_click=lambda e, cid=cliente_id, cn=cliente_nome: confirmar_excluir(cid, cn)
-                    ),
-                ]
-            )
-
-            rows.append(
-                ft.DataRow(
-                    cells=[
-                        ft.DataCell(ft.Text(str(c[0]))),
-                        ft.DataCell(ft.Text(c[1])),
-                        ft.DataCell(ft.Text(c[2] if c[2] else "-")),
-                        ft.DataCell(ft.Text(c[3] if c[3] else "-")),
-                        ft.DataCell(ft.Text(str(c[4]))),
-                        ft.DataCell(menu),
-                    ]
-                )
-            )
-
-        tabela = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Text("ID")),
-                ft.DataColumn(ft.Text("Nome")),
-                ft.DataColumn(ft.Text("Email")),
-                ft.DataColumn(ft.Text("Telefone")),
-                ft.DataColumn(ft.Text("Criado em")),
                 ft.DataColumn(ft.Text("Menu")),
             ],
             rows=rows,
@@ -964,7 +719,7 @@ class AdmWindow:
             padding=20,
             content=ft.Column(
                 controls=[
-                    ft.Text("Clientes", size=28, font_family="JosefinBold"),
+                    ft.Text("Estoque", size=28, font_family="JosefinBold"),
                     ft.Container(
                         content=tabela,
                         bgcolor="white",
@@ -973,6 +728,192 @@ class AdmWindow:
                         border=ft.border.all(1, "#D2D2D2"),
                         height=500,
                         width=1000
+                    )
+                ]
+            )
+        )
+
+    def _clientes_(self):
+        conn, cursor = self.conectar()
+
+        cursor.execute("SELECT id, nome, email, telefone, criado_em FROM clientes")
+        clientes = cursor.fetchall()
+        conn.close()
+
+        def fechar_confirm(e, dialog):
+            dialog.open = False
+            self.page.update()
+
+        def confirmar_excluir(cliente_id, cliente_nome):
+            confirm_dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Confirmar exclusão", font_family="JosefinBold", size=20),
+                shape=ft.RoundedRectangleBorder(radius=7),
+                content=ft.Text(
+                    f"Tem certeza que deseja apagar o cliente '{cliente_nome}'?",
+                    font_family="inter"
+                ),
+                actions=[
+                    ft.TextButton(
+                        "Apagar",
+                        style=ft.ButtonStyle(
+                            padding=20,
+                            alignment=ft.alignment.center_left,
+                            color="#EEEEEE",
+                            bgcolor="#E53935",
+                            overlay_color="#C62828",
+                            shape=ft.RoundedRectangleBorder(radius=7),
+                            text_style=ft.TextStyle(size=14, font_family="inter")
+                        ),
+                        on_click=lambda e: executar_exclusao(e, cliente_id, confirm_dialog)
+                    ),
+                    ft.TextButton(
+                        "Cancelar",style=cancelar_style,on_click=lambda e: fechar_confirm(e, confirm_dialog)
+                    )
+
+                ],
+                actions_alignment="end",
+            )
+
+            self.page.overlay.append(confirm_dialog)
+            confirm_dialog.open = True
+            self.page.update()
+
+        def executar_exclusao(e, cliente_id, dialog):
+            dialog.open = False
+            cursor.execute("DELETE FROM clientes WHERE id = ?", (cliente_id,))
+            conn.commit()
+            conn.close()
+
+            self._atualizar_tabela()
+            self.page.update()
+
+        def filtrar_clientes(e):
+            self.filtro_clientes = e.control.value.lower()
+            self._atualizar_tabela()
+
+        def montar_rows():
+            if self.filtro_clientes:
+                busca = f"%{self.filtro_clientes}%"
+                cursor.execute("""
+                    SELECT id, nome, email, telefone, criado_em
+                    FROM clientes
+                    WHERE nome LIKE ? OR telefone LIKE ?
+                """, (busca, busca))
+            else:
+                cursor.execute("SELECT id, nome, email, telefone, criado_em FROM clientes")
+
+            dados = cursor.fetchall()
+            conn.close()
+
+            linhas = []
+            for c in dados:
+                cliente_id = c[0]
+                cliente_nome = c[1]
+
+                menu = ft.PopupMenuButton(
+                    items=[
+                        ft.PopupMenuItem(
+                            text="Editar",
+                            on_click=lambda e, cid=c[0], cn=c[1], ce=c[2], ct=c[3]:
+                            self._editar_cliente_(self.page, cid, cn, ce, ct)
+                        ),
+                        ft.PopupMenuItem(
+                            text="Apagar",
+                            on_click=lambda e, cid=cliente_id, cn=cliente_nome:
+                            confirmar_excluir(cid, cn)
+                        ),
+                    ]
+                )
+
+                linhas.append(
+                    ft.DataRow(
+                        cells=[
+                            ft.DataCell(ft.Container(ft.Text(str(c[0])), width=50)),
+                            ft.DataCell(ft.Container(ft.Text(c[1]), width=200)),
+                            ft.DataCell(ft.Container(ft.Text(c[2] if c[2] else "-"), width=250)),
+                            ft.DataCell(ft.Container(ft.Text(c[3] if c[3] else "-"), width=150)),
+                            ft.DataCell(ft.Container(ft.Text(str(c[4])), width=150)),
+                            ft.DataCell(menu),
+                        ]
+                    )
+                )
+            return linhas
+
+        self.tabela_body = ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("")),
+                ft.DataColumn(ft.Text("")),
+                ft.DataColumn(ft.Text("")),
+                ft.DataColumn(ft.Text("")),
+                ft.DataColumn(ft.Text("")),
+                ft.DataColumn(ft.Text("")),
+            ],
+            rows=montar_rows(),
+            heading_row_height=0,
+            column_spacing=20,
+            show_bottom_border=False,
+        )
+
+        def atualizar_tabela():
+            novas = montar_rows()
+            self.tabela_body.rows = novas
+            self.tabela_body.update()
+
+        self._atualizar_tabela = atualizar_tabela
+
+        tabela_header = ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Container(content=ft.Text("ID"), width=50)),
+                ft.DataColumn(ft.Container(content=ft.Text("Nome"), width=200)),
+                ft.DataColumn(ft.Container(content=ft.Text("Email"), width=250)),
+                ft.DataColumn(ft.Container(content=ft.Text("Telefone"), width=150)),
+                ft.DataColumn(ft.Container(content=ft.Text("Criado em"), width=150)),
+                ft.DataColumn(ft.Container(content=ft.Text("Menu"), width=50)),
+            ],
+            rows=[],
+            heading_row_color="#E0E0E0",
+            border=ft.border.only(bottom=ft.BorderSide(1, "#CCCCCC")),
+            column_spacing=20,
+        )
+
+        tabela_scroll = ft.ListView(
+            expand=True,
+            controls=[
+                ft.Container(
+                    content=self.tabela_body,
+                    expand=True
+                )
+            ]
+        )
+
+        self.campo_pesquisa = ft.TextField(
+            label="Pesquisar",
+            prefix_icon=ft.Icons.SEARCH,
+            value=self.filtro_clientes,
+            on_change=filtrar_clientes
+        )
+
+        return ft.Container(
+            padding=20,
+            content=ft.Column(
+                controls=[
+                    ft.Text("Clientes", size=28, font_family="JosefinBold"),
+                    self.campo_pesquisa,
+                    ft.Container(
+                        bgcolor="white",
+                        padding=10,
+                        border_radius=10,
+                        border=ft.border.all(1, "#D2D2D2"),
+                        height=500,
+                        width=1000,
+                        content=ft.Column(
+                            spacing=0,
+                            controls=[
+                                tabela_header,
+                                tabela_scroll
+                            ]
+                        )
                     )
                 ]
             )
