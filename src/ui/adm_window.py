@@ -1,16 +1,14 @@
-import flet as ft
 import sqlite3
 import os
 from src.modules.utils import *
 
 pedidos_producao = 47
-salvar_style= ft.ButtonStyle(padding=20, alignment=ft.alignment.center_left, color="#EEEEEE", bgcolor="#273273", shape=ft.RoundedRectangleBorder(radius=7), text_style=ft.TextStyle(size=14, font_family="inter"))
-cancelar_style = ft.ButtonStyle(padding=20,alignment=ft.alignment.center,color="#212121",bgcolor="#BDBDBD",shape=ft.RoundedRectangleBorder(radius=7),text_style=ft.TextStyle(size=14, font_family="inter"))
 menu_lateral_style = ft.ButtonStyle(color="black",text_style=ft.TextStyle(font_family="JosefinLight",size=16,weight=ft.FontWeight.BOLD),alignment=ft.alignment.center_left)
 
 class AdmWindow:
     def __init__(self):
         self.filtro_clientes = ""
+        self.filtro_estoque = ""
         self.tabela_body = None
         self.pesquisa_input = None
 
@@ -115,83 +113,6 @@ class AdmWindow:
         )
 
         return menu
-
-    def _editar_cliente_(self, page, cliente_id, nome, email, telefone):
-        conn, cursor = self.conectar()
-
-        nome_cliente = ft.TextField(
-            label="Cliente",
-            value=nome,
-            on_change=limpar_erro
-        )
-
-        email_cliente = ft.TextField(
-            label="Email",
-            value=email if email else "",
-            on_change=limpar_erro
-        )
-
-        telefone_cliente = ft.TextField(
-            label="Telefone",
-            hint_text="(XX) XXXXXXXXX",
-            value=telefone if telefone else "",
-            on_change=formatar_telefone
-        )
-
-        def salvar_modal(e):
-            if not validar_campos_obrigatorios(nome_cliente, telefone_cliente):
-                return
-
-            cursor.execute("""
-                UPDATE clientes
-                SET nome = ?, email = ?, telefone = ?
-                WHERE id = ?
-            """, (
-                nome_cliente.value.strip(),
-                email_cliente.value.strip() if email_cliente.value else None,
-                telefone_cliente.value.strip(),
-                cliente_id
-            ))
-
-            conn.commit()
-            conn.close()
-
-            modal.open = False
-            page.update()
-
-            self.main_content.content = self._clientes_()
-            self.main_content.update()
-
-            modal.open = False
-            page.update()
-
-        modal = ft.AlertDialog(
-            modal=True,
-            content=ft.Column(
-                [
-                    ft.Text("Editar Cliente", font_family="JosefinBold", size=20),
-                    nome_cliente,
-                    email_cliente,
-                    telefone_cliente,
-                ],
-                spacing=10,
-                tight=True,
-                width=340
-            ),
-            actions=[
-                ft.TextButton(
-                    "Salvar",style=salvar_style,on_click=salvar_modal,
-                ),
-                ft.TextButton(
-                    "Cancelar",style=cancelar_style,on_click=lambda e: fechar_modal(modal, page),
-                )
-            ],
-            shape=ft.RoundedRectangleBorder(radius=7)
-        )
-
-        page.overlay.append(modal)
-        modal.open = True
-        page.update()
 
     def _abrir_modal_pedido_(self, page):
         opcoes_pedido = [
@@ -437,6 +358,7 @@ class AdmWindow:
         page.update()
 
     def _abrir_modal_estoque_(self, page):
+        conn, cursor = self.conectar()
         produto = ft.TextField(
             label="Produto",
             on_change=limpar_erro
@@ -456,8 +378,21 @@ class AdmWindow:
         def salvar_modal(e):
             if not validar_campos_obrigatorios(produto, preco, estoque):
                 return
+            cursor.execute("""
+                            INSERT INTO produtos (nome, preco, estoque)
+                            VALUES (?, ?, ?)
+                        """, (
+                produto.value.strip(),
+                preco.value.strip(),
+                estoque.value.strip()
+            ))
 
-            self.main_content.content = self._clientes_()
+            conn.commit()
+            conn.close()
+
+            fechar_modal(modal, page)
+
+            self.main_content.content = self._estoque_()
             self.main_content.update()
 
         modal = ft.AlertDialog(
@@ -644,159 +579,58 @@ class AdmWindow:
         return menu_superior
 
     def _estoque_(self):
-        conn, cursor = self.conectar()
-
-        cursor.execute("SELECT id, nome, preco, estoque FROM produtos")
-        clientes = cursor.fetchall()
-        conn.close()
-
-        menu = ft.PopupMenuButton(
-            items=[
-                ft.PopupMenuItem(
-                    text="Editar",
-                ),
-                ft.PopupMenuItem(
-                    text="Apagar",
-                ),
-            ]
-        )
-
-        rows = []
-        for c in clientes:
-            rows.append(
-                ft.DataRow(
-                    cells=[
-                        ft.DataCell(ft.Container(ft.Text(str(c[0])), width=50)),
-                        ft.DataCell(ft.Container(ft.Text(c[1]), width=200)),
-                        ft.DataCell(ft.Container(ft.Text(c[2] if c[2] else "-"), width=250)),
-                        ft.DataCell(ft.Container(ft.Text(str(c[3])), width=150)),
-                        ft.DataCell(menu),
-                    ]
-                )
-            )
-        return ft.Container(
-            padding=20,
-            content=ft.Column(
-                controls=[
-                    ft.Text("Estoque", size=28, font_family="JosefinBold"),
-                    ft.TextField(label="Pesquisar",prefix_icon=ft.Icons.SEARCH,),
-                    ft.Container(
-                        ft.DataTable(
-                            columns=[
-                                ft.DataColumn(ft.Text("ID")),
-                                ft.DataColumn(ft.Text("Produto"))
-                                ,ft.DataColumn(ft.Text("Preço")),
-                                ft.DataColumn(ft.Text("Estoque")),
-                                ft.DataColumn(ft.Text("Menu")),
-                            ],
-                            rows=rows,
-                            column_spacing=20,
-                            heading_row_color="#E0E0E0",
-                            border=ft.border.all(1, "#CCCCCC"),
-                            border_radius=0
-                        ),
-                        bgcolor="white",
-                        padding=10,
-                        border_radius=10,
-                        border=ft.border.all(1, "#D2D2D2"),
-                        height=500,
-                        width=1000
-                    ),
-                ]
-            )
-        )
-
-    def _clientes_(self):
-        conn, cursor = self.conectar()
-
-        cursor.execute("SELECT id, nome, email, telefone, criado_em FROM clientes")
-        clientes = cursor.fetchall()
-        conn.close()
-
-        def fechar_confirm(e, dialog):
-            dialog.open = False
-            self.page.update()
-
-        def confirmar_excluir(cliente_id, cliente_nome):
-            confirm_dialog = ft.AlertDialog(
-                modal=True,
-                title=ft.Text("Confirmar exclusão", font_family="JosefinBold", size=20),
-                shape=ft.RoundedRectangleBorder(radius=7),
-                content=ft.Text(
-                    f"Tem certeza que deseja apagar o cliente '{cliente_nome}'?",
-                    font_family="inter"
-                ),
-                actions=[
-                    ft.TextButton(
-                        "Apagar",
-                        style=ft.ButtonStyle(
-                            padding=20,
-                            alignment=ft.alignment.center_left,
-                            color="#EEEEEE",
-                            bgcolor="#E53935",
-                            overlay_color="#C62828",
-                            shape=ft.RoundedRectangleBorder(radius=7),
-                            text_style=ft.TextStyle(size=14, font_family="inter")
-                        ),
-                        on_click=lambda e: executar_exclusao(e, cliente_id, confirm_dialog)
-                    ),
-                    ft.TextButton(
-                        "Cancelar",style=cancelar_style,on_click=lambda e: fechar_confirm(e, confirm_dialog)
-                    )
-
-                ],
-                actions_alignment="end",
-            )
-
-            self.page.overlay.append(confirm_dialog)
-            confirm_dialog.open = True
-            self.page.update()
-
-        def executar_exclusao(e, cliente_id, dialog):
-            conn, cursor = self.conectar()
-            dialog.open = False
-            cursor.execute("DELETE FROM clientes WHERE id = ?", (cliente_id,))
-            conn.commit()
-            conn.close()
-
-            self._atualizar_tabela()
-            self.page.update()
-
-        def filtrar_clientes(e):
-            self.filtro_clientes = e.control.value.lower()
-            self._atualizar_tabela()
-
         def montar_rows():
-            conn, cursor = self.conectar()
-            if self.filtro_clientes:
-                busca = f"%{self.filtro_clientes}%"
-                cursor.execute("""
-                    SELECT id, nome, email, telefone, criado_em
-                    FROM clientes
-                    WHERE nome LIKE ? OR telefone LIKE ?
-                """, (busca, busca))
-            else:
-                cursor.execute("SELECT id, nome, email, telefone, criado_em FROM clientes")
-
-            dados = cursor.fetchall()
-            conn.close()
+            dados = buscar_generico(
+                conectar_fn=self.conectar,
+                tabela="produtos",
+                colunas=["id", "nome", "preco", "estoque"],
+                coluna_pesquisa=["nome"],
+                texto=self.filtro_estoque
+            )
 
             linhas = []
-            for c in dados:
-                cliente_id = c[0]
-                cliente_nome = c[1]
 
+            for pid, nome, preco, estoque in dados:
                 menu = ft.PopupMenuButton(
                     items=[
                         ft.PopupMenuItem(
                             text="Editar",
-                            on_click=lambda e, cid=c[0], cn=c[1], ce=c[2], ct=c[3]:
-                            self._editar_cliente_(self.page, cid, cn, ce, ct)
+                            on_click=lambda e, pid=pid, nome=nome, preco=preco, estoque=estoque:
+                            editar_generico(
+                                self.page,
+                                "Editar Produto",
+                                ["Nome", "Preço", "Estoque"],
+                                [nome, preco, estoque],
+                                validar_fn=lambda vals: True,
+                                salvar_sql_fn=lambda vals, pid=pid: salvar_generico(
+                                    conectar_fn=self.conectar,
+                                    tabela="produtos",
+                                    colunas=["nome", "preco", "estoque"],
+                                    id_coluna="id",
+                                    item_id=pid,
+                                    valores=vals
+                                ),
+                                atualizar_callback=lambda: (
+                                    setattr(self.main_content, "content", self._estoque_()),
+                                    self.main_content.update()
+                                )
+                            )
                         ),
                         ft.PopupMenuItem(
                             text="Apagar",
-                            on_click=lambda e, cid=cliente_id, cn=cliente_nome:
-                            confirmar_excluir(cid, cn)
+                            on_click=lambda e, pid=pid, nome=nome: confirmar_excluir_generico(
+                                page=self.page,
+                                titulo="Confirmar exclusão",
+                                mensagem=f"Tem certeza que deseja excluir o produto '{nome}'?",
+                                conectar_fn=self.conectar,
+                                tabela="produtos",
+                                id_coluna="id",
+                                item_id=pid,
+                                atualizar_callback=lambda: (
+                                    self._atualizar_tabela_estoque(),
+                                    self.page.update()
+                                )
+                            )
                         ),
                     ]
                 )
@@ -804,26 +638,161 @@ class AdmWindow:
                 linhas.append(
                     ft.DataRow(
                         cells=[
-                            ft.DataCell(ft.Container(ft.Text(str(c[0])), width=50)),
-                            ft.DataCell(ft.Container(ft.Text(c[1]), width=200)),
-                            ft.DataCell(ft.Container(ft.Text(c[2] if c[2] else "-"), width=250)),
-                            ft.DataCell(ft.Container(ft.Text(c[3] if c[3] else "-"), width=150)),
-                            ft.DataCell(ft.Container(ft.Text(str(c[4])), width=150)),
+                            ft.DataCell(ft.Container(ft.Text(str(pid)), width=50)),
+                            ft.DataCell(ft.Container(ft.Text(nome), width=200)),
+                            ft.DataCell(ft.Container(ft.Text(str(preco)), width=150)),
+                            ft.DataCell(ft.Container(ft.Text(str(estoque)), width=150)),
                             ft.DataCell(menu),
                         ]
                     )
                 )
+
+            return linhas
+
+        self.tabela_estoque_body = ft.DataTable(
+            columns=[ft.DataColumn(ft.Text("")) for _ in range(5)],
+            rows=montar_rows(),
+            heading_row_height=0,
+            column_spacing=20,
+            show_bottom_border=False,
+        )
+
+        def atualizar_tabela():
+            novas = montar_rows()
+            self.tabela_estoque_body.rows = novas
+            self.tabela_estoque_body.update()
+
+        self._atualizar_tabela_estoque = atualizar_tabela
+
+        tabela_header = ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Container(content=ft.Text("ID"), width=100)),
+                ft.DataColumn(ft.Container(content=ft.Text("Produto"), width=250)),
+                ft.DataColumn(ft.Container(content=ft.Text("Preço"), width=200)),
+                ft.DataColumn(ft.Container(content=ft.Text("Estoque"), width=210)),
+                ft.DataColumn(ft.Container(content=ft.Text("Menu"), width=100)),
+            ],
+            rows=[],
+            heading_row_color="#E0E0E0",
+            border=ft.border.only(bottom=ft.BorderSide(1, "#CCCCCC")),
+            column_spacing=20,
+        )
+
+        tabela_scroll = ft.ListView(
+            expand=True,
+            controls=[ft.Container(content=self.tabela_estoque_body, expand=True)]
+        )
+
+        self.campo_pesquisa_estoque = ft.TextField(
+            label="Pesquisar",
+            prefix_icon=ft.Icons.SEARCH,
+            value=self.filtro_estoque,
+            on_change=filtrar_generico(
+                instancia=self,
+                campo="filtro_estoque",
+                atualizar_callback=self._atualizar_tabela_estoque
+            )
+        )
+
+        return ft.Container(
+            padding=20,
+            content=ft.Column(
+                controls=[
+                    ft.Text("Estoque", size=28, font_family="JosefinBold"),
+                    self.campo_pesquisa_estoque,
+                    ft.Container(
+                        bgcolor="white",
+                        padding=10,
+                        border_radius=10,
+                        border=ft.border.all(1, "#D2D2D2"),
+                        height=500,
+                        width=1000,
+                        content=ft.Column(
+                            spacing=0,
+                            controls=[tabela_header, tabela_scroll]
+                        )
+                    )
+                ]
+            )
+        )
+
+    def _clientes_(self):
+        def montar_rows():
+            dados = buscar_generico(
+                conectar_fn=self.conectar,
+                tabela="clientes",
+                colunas=["id", "nome", "email", "telefone", "criado_em"],
+                coluna_pesquisa=["nome", "telefone"],
+                texto=self.filtro_clientes
+            )
+
+            linhas = []
+
+            for cid, nome, email, telefone, criado in dados:
+                menu = ft.PopupMenuButton(
+                    items=[
+                        ft.PopupMenuItem(
+                            text="Editar",
+                            on_click=lambda e, cid=cid, nome=nome, email=email, telefone=telefone:
+                            editar_generico(
+                                self.page,
+                                "Editar Cliente",
+                                ["Nome", "Email", "Telefone"],
+                                [nome, email, telefone],
+                                validar_fn=lambda vals: validar_campos_obrigatorios(
+                                    ft.TextField(value=vals[0]),
+                                    ft.TextField(value=vals[2])
+                                ),
+                                salvar_sql_fn=lambda vals, cid=cid: salvar_generico(
+                                    conectar_fn=self.conectar,
+                                    tabela="clientes",
+                                    colunas=["nome", "email", "telefone"],
+                                    id_coluna="id",
+                                    item_id=cid,
+                                    valores=vals
+                                ),
+                                atualizar_callback=lambda: (
+                                    setattr(self.main_content, "content", self._clientes_()),
+                                    self.main_content.update()
+                                )
+                            )
+                        ),
+                        ft.PopupMenuItem(
+                            text="Apagar",
+                            on_click=lambda e, cid=cid, nome=nome: confirmar_excluir_generico(
+                                page=self.page,
+                                titulo="Confirmar exclusão",
+                                mensagem=f"Tem certeza que deseja apagar o cliente '{nome}'?",
+                                conectar_fn=self.conectar,
+                                tabela="clientes",
+                                id_coluna="id",
+                                item_id=cid,
+                                atualizar_callback=lambda: (
+                                    self._atualizar_tabela(),
+                                    self.page.update()
+                                )
+                            )
+                        ),
+                    ]
+                )
+
+                linhas.append(
+                    ft.DataRow(
+                        cells=[
+                            ft.DataCell(ft.Container(ft.Text(str(cid)), width=50)),
+                            ft.DataCell(ft.Container(ft.Text(nome), width=200)),
+                            ft.DataCell(ft.Container(ft.Text(email if email else "-"), width=250)),
+                            ft.DataCell(ft.Container(ft.Text(telefone if telefone else "-"), width=150)),
+                            ft.DataCell(ft.Container(ft.Text(str(criado)), width=150)),
+                            ft.DataCell(menu),
+                        ]
+                    )
+                )
+
             return linhas
 
         self.tabela_body = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Text("")),
-                ft.DataColumn(ft.Text("")),
-                ft.DataColumn(ft.Text("")),
-                ft.DataColumn(ft.Text("")),
-                ft.DataColumn(ft.Text("")),
-                ft.DataColumn(ft.Text("")),
-            ],
+            columns=[ft.DataColumn(ft.Text("")) for _ in range(6)],
             rows=montar_rows(),
             heading_row_height=0,
             column_spacing=20,
@@ -854,19 +823,18 @@ class AdmWindow:
 
         tabela_scroll = ft.ListView(
             expand=True,
-            controls=[
-                ft.Container(
-                    content=self.tabela_body,
-                    expand=True
-                )
-            ]
+            controls=[ft.Container(content=self.tabela_body, expand=True)]
         )
 
         self.campo_pesquisa = ft.TextField(
             label="Pesquisar",
             prefix_icon=ft.Icons.SEARCH,
             value=self.filtro_clientes,
-            on_change=filtrar_clientes
+            on_change=filtrar_generico(
+                instancia=self,
+                campo="filtro_clientes",
+                atualizar_callback=self._atualizar_tabela
+            )
         )
 
         return ft.Container(
@@ -884,10 +852,7 @@ class AdmWindow:
                         width=1000,
                         content=ft.Column(
                             spacing=0,
-                            controls=[
-                                tabela_header,
-                                tabela_scroll
-                            ]
+                            controls=[tabela_header, tabela_scroll]
                         )
                     )
                 ]
