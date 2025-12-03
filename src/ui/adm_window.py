@@ -51,6 +51,30 @@ class AdmWindow:
         )
 
     def _menu_lateral_(self, page: ft.Page):
+        def confirmar_saida():
+            def fechar(e):
+                dialog.open = False
+                page.update()
+
+            def sair(e):
+                page.window.close()
+
+            dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Sair"),
+                content=ft.Text("Tem certeza que deseja sair?"),
+                actions=[
+                    ft.TextButton("Sair",style=salvar_style ,on_click=sair,),
+                    ft.TextButton("Cancelar", on_click=fechar, style=cancelar_style),
+
+                ],
+                actions_alignment="end",
+            )
+
+            page.overlay.append(dialog)
+            dialog.open = True
+            page.update()
+
         def go_home(e):
             self.main_content.content = self._pedidos_()
             set_fab(page, "#E47B12", self._abrir_modal_pedido_)
@@ -67,6 +91,8 @@ class AdmWindow:
             set_fab(page, "green", self._abrir_modal_estoque_)
             self.main_content.update()
             page.update()
+
+
 
         links = [
             ft.TextButton(
@@ -92,10 +118,11 @@ class AdmWindow:
 
             #botao de sair fechar janela
 
-            ft.TextButton("Sair",
+            ft.TextButton(
+                "Sair",
                 width=500,
-                on_click=lambda e: e.page.window.close(),
-                style=menu_lateral_style,
+                on_click=lambda e: confirmar_saida(),
+                style=menu_lateral_style
             )
         ]
         menu = ft.Container(
