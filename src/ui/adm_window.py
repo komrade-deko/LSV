@@ -90,11 +90,12 @@ class AdmWindow:
                 style=menu_lateral_style
             ),
 
-            ft.TextButton(
-                "Sair",
+            #botao de sair fechar janela
+
+            ft.TextButton("Sair",
                 width=500,
-                on_click=lambda e: print("Sair..."),
-                style=menu_lateral_style
+                on_click=lambda e: e.page.window.close(),
+                style=menu_lateral_style,
             )
         ]
         menu = ft.Container(
