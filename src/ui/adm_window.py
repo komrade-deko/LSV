@@ -66,7 +66,6 @@ class AdmWindow:
                 actions=[
                     ft.TextButton("Sair",style=salvar_style ,on_click=sair,),
                     ft.TextButton("Cancelar", on_click=fechar, style=cancelar_style),
-
                 ],
                 actions_alignment="end",
             )
@@ -92,8 +91,6 @@ class AdmWindow:
             self.main_content.update()
             page.update()
 
-
-
         links = [
             ft.TextButton(
                 "Início",
@@ -115,8 +112,6 @@ class AdmWindow:
                 on_click=go_produtos,
                 style=menu_lateral_style
             ),
-
-            #botao de sair fechar janela
 
             ft.TextButton(
                 "Sair",
@@ -597,7 +592,7 @@ class AdmWindow:
                         ],
                     ),
                     ft.Text(
-                        "Graficos",
+                        "Pedidos",
                         font_family="JosefinBold",
                         size=22,
                     ),
@@ -607,285 +602,62 @@ class AdmWindow:
         return menu_superior
 
     def _estoque_(self):
-        def montar_rows():
-            dados = buscar_generico(
-                conectar_fn=self.conectar,
-                tabela="produtos",
-                colunas=["id", "nome", "preco", "estoque"],
-                coluna_pesquisa=["nome"],
-                texto=self.filtro_estoque
-            )
-
-            linhas = []
-
-            for pid, nome, preco, estoque in dados:
-                menu = ft.PopupMenuButton(
-                    items=[
-                        ft.PopupMenuItem(
-                            text="Editar",
-                            on_click=lambda e, pid=pid, nome=nome, preco=preco, estoque=estoque:
-                            editar_generico(
-                                self.page,
-                                "Editar Produto",
-                                ["Nome", "Preço", "Estoque"],
-                                [nome, preco, estoque],
-                                validar_fn=lambda vals: True,
-                                salvar_sql_fn=lambda vals, pid=pid: salvar_generico(
-                                    conectar_fn=self.conectar,
-                                    tabela="produtos",
-                                    colunas=["nome", "preco", "estoque"],
-                                    id_coluna="id",
-                                    item_id=pid,
-                                    valores=vals
-                                ),
-                                atualizar_callback=lambda: (
-                                    setattr(self.main_content, "content", self._estoque_()),
-                                    self.main_content.update()
-                                )
-                            )
-                        ),
-                        ft.PopupMenuItem(
-                            text="Apagar",
-                            on_click=lambda e, pid=pid, nome=nome: confirmar_excluir_generico(
-                                page=self.page,
-                                titulo="Confirmar exclusão",
-                                mensagem=f"Tem certeza que deseja excluir o produto '{nome}'?",
-                                conectar_fn=self.conectar,
-                                tabela="produtos",
-                                id_coluna="id",
-                                item_id=pid,
-                                atualizar_callback=lambda: (
-                                    self._atualizar_tabela_estoque(),
-                                    self.page.update()
-                                )
-                            )
-                        ),
-                    ]
-                )
-
-                linhas.append(
-                    ft.DataRow(
-                        cells=[
-                            ft.DataCell(ft.Container(ft.Text(str(pid)), width=50)),
-                            ft.DataCell(ft.Container(ft.Text(nome), width=200)),
-                            ft.DataCell(ft.Container(ft.Text(str(preco)), width=150)),
-                            ft.DataCell(ft.Container(ft.Text(str(estoque)), width=150)),
-                            ft.DataCell(menu),
-                        ]
-                    )
-                )
-
-            return linhas
-
-        self.tabela_estoque_body = ft.DataTable(
-            columns=[ft.DataColumn(ft.Text("")) for _ in range(5)],
-            rows=montar_rows(),
-            heading_row_height=0,
-            column_spacing=20,
-            show_bottom_border=False,
+        container, atualizar_fn, campo_pesquisa, data_body = tabela_generica(
+            page=self.page,
+            instancia=self,
+            conectar_fn=self.conectar,
+            tabela="produtos",
+            colunas=["id", "nome", "preco", "estoque"],
+            coluna_pesquisa=["nome"],
+            filtro_attr="filtro_estoque",
+            titulo="Estoque",
+            header_titles=["ID", "Produto", "Preço", "Estoque"],
+            editar_labels=["Nome", "Preço", "Estoque"],
+            salvar_colunas=["nome", "preco", "estoque"],
+            id_coluna="id",
+            validar_fn_default=lambda vals: True,
+            adicionar_callback=None
         )
+        self.tabela_estoque_body = data_body
 
         def atualizar_tabela():
-            novas = montar_rows()
-            self.tabela_estoque_body.rows = novas
-            self.tabela_estoque_body.update()
+            atualizar_fn()
 
         self._atualizar_tabela_estoque = atualizar_tabela
+        self.campo_pesquisa_estoque = campo_pesquisa
 
-        tabela_header = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Container(content=ft.Text("ID"), width=100)),
-                ft.DataColumn(ft.Container(content=ft.Text("Produto"), width=250)),
-                ft.DataColumn(ft.Container(content=ft.Text("Preço"), width=200)),
-                ft.DataColumn(ft.Container(content=ft.Text("Estoque"), width=210)),
-                ft.DataColumn(ft.Container(content=ft.Text("Menu"), width=100)),
-            ],
-            rows=[],
-            heading_row_color="#E0E0E0",
-            border=ft.border.only(bottom=ft.BorderSide(1, "#CCCCCC")),
-            column_spacing=20,
-        )
-
-        tabela_scroll = ft.ListView(
-            expand=True,
-            controls=[ft.Container(content=self.tabela_estoque_body, expand=True)]
-        )
-
-        self.campo_pesquisa_estoque = ft.TextField(
-            label="Pesquisar",
-            prefix_icon=ft.Icons.SEARCH,
-            value=self.filtro_estoque,
-            on_change=filtrar_generico(
-                instancia=self,
-                campo="filtro_estoque",
-                atualizar_callback=self._atualizar_tabela_estoque
-            )
-        )
-
-        return ft.Container(
-            padding=20,
-            content=ft.Column(
-                controls=[
-                    ft.Text("Estoque", size=28, font_family="JosefinBold"),
-                    self.campo_pesquisa_estoque,
-                    ft.Container(
-                        bgcolor="white",
-                        padding=10,
-                        border_radius=10,
-                        border=ft.border.all(1, "#D2D2D2"),
-                        height=500,
-                        width=1000,
-                        content=ft.Column(
-                            spacing=0,
-                            controls=[tabela_header, tabela_scroll]
-                        )
-                    )
-                ]
-            )
-        )
+        return container
 
     def _clientes_(self):
-        def montar_rows():
-            dados = buscar_generico(
-                conectar_fn=self.conectar,
-                tabela="clientes",
-                colunas=["id", "nome", "email", "telefone", "criado_em"],
-                coluna_pesquisa=["nome", "telefone"],
-                texto=self.filtro_clientes
-            )
-
-            linhas = []
-
-            for cid, nome, email, telefone, criado in dados:
-                menu = ft.PopupMenuButton(
-                    items=[
-                        ft.PopupMenuItem(
-                            text="Editar",
-                            on_click=lambda e, cid=cid, nome=nome, email=email, telefone=telefone:
-                            editar_generico(
-                                self.page,
-                                "Editar Cliente",
-                                ["Nome", "Email", "Telefone"],
-                                [nome, email, telefone],
-                                validar_fn=lambda vals: validar_campos_obrigatorios(
-                                    ft.TextField(value=vals[0]),
-                                    ft.TextField(value=vals[2])
-                                ),
-                                salvar_sql_fn=lambda vals, cid=cid: salvar_generico(
-                                    conectar_fn=self.conectar,
-                                    tabela="clientes",
-                                    colunas=["nome", "email", "telefone"],
-                                    id_coluna="id",
-                                    item_id=cid,
-                                    valores=vals
-                                ),
-                                atualizar_callback=lambda: (
-                                    setattr(self.main_content, "content", self._clientes_()),
-                                    self.main_content.update()
-                                )
-                            )
-                        ),
-                        ft.PopupMenuItem(
-                            text="Apagar",
-                            on_click=lambda e, cid=cid, nome=nome: confirmar_excluir_generico(
-                                page=self.page,
-                                titulo="Confirmar exclusão",
-                                mensagem=f"Tem certeza que deseja apagar o cliente '{nome}'?",
-                                conectar_fn=self.conectar,
-                                tabela="clientes",
-                                id_coluna="id",
-                                item_id=cid,
-                                atualizar_callback=lambda: (
-                                    self._atualizar_tabela(),
-                                    self.page.update()
-                                )
-                            )
-                        ),
-                    ]
-                )
-
-                linhas.append(
-                    ft.DataRow(
-                        cells=[
-                            ft.DataCell(ft.Container(ft.Text(str(cid)), width=50)),
-                            ft.DataCell(ft.Container(ft.Text(nome), width=200)),
-                            ft.DataCell(ft.Container(ft.Text(email if email else "-"), width=250)),
-                            ft.DataCell(ft.Container(ft.Text(telefone if telefone else "-"), width=150)),
-                            ft.DataCell(ft.Container(ft.Text(str(criado)), width=150)),
-                            ft.DataCell(menu),
-                        ]
-                    )
-                )
-
-            return linhas
-
-        self.tabela_body = ft.DataTable(
-            columns=[ft.DataColumn(ft.Text("")) for _ in range(6)],
-            rows=montar_rows(),
-            heading_row_height=0,
-            column_spacing=20,
-            show_bottom_border=False,
+        container, atualizar_fn, campo_pesquisa, data_body = tabela_generica(
+            page=self.page,
+            instancia=self,
+            conectar_fn=self.conectar,
+            tabela="clientes",
+            colunas=["id", "nome", "email", "telefone", "criado_em"],
+            coluna_pesquisa=["nome", "telefone"],
+            filtro_attr="filtro_clientes",
+            titulo="Clientes",
+            header_titles=["ID", "Nome", "Email", "Telefone", "Criado em"],
+            editar_labels=["Nome", "Email", "Telefone"],
+            salvar_colunas=["nome", "email", "telefone"],
+            id_coluna="id",
+            validar_fn_default=lambda vals: validar_campos_obrigatorios(
+                ft.TextField(value=vals[0]),
+                ft.TextField(value=vals[2])
+            ),
+            adicionar_callback=None
         )
+
+        self.tabela_body = data_body
 
         def atualizar_tabela():
-            novas = montar_rows()
-            self.tabela_body.rows = novas
-            self.tabela_body.update()
+            atualizar_fn()
 
         self._atualizar_tabela = atualizar_tabela
+        self.campo_pesquisa = campo_pesquisa
 
-        tabela_header = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Container(content=ft.Text("ID"), width=50)),
-                ft.DataColumn(ft.Container(content=ft.Text("Nome"), width=200)),
-                ft.DataColumn(ft.Container(content=ft.Text("Email"), width=250)),
-                ft.DataColumn(ft.Container(content=ft.Text("Telefone"), width=150)),
-                ft.DataColumn(ft.Container(content=ft.Text("Criado em"), width=150)),
-                ft.DataColumn(ft.Container(content=ft.Text("Menu"), width=50)),
-            ],
-            rows=[],
-            heading_row_color="#E0E0E0",
-            border=ft.border.only(bottom=ft.BorderSide(1, "#CCCCCC")),
-            column_spacing=20,
-        )
-
-        tabela_scroll = ft.ListView(
-            expand=True,
-            controls=[ft.Container(content=self.tabela_body, expand=True)]
-        )
-
-        self.campo_pesquisa = ft.TextField(
-            label="Pesquisar",
-            prefix_icon=ft.Icons.SEARCH,
-            value=self.filtro_clientes,
-            on_change=filtrar_generico(
-                instancia=self,
-                campo="filtro_clientes",
-                atualizar_callback=self._atualizar_tabela
-            )
-        )
-
-        return ft.Container(
-            padding=20,
-            content=ft.Column(
-                controls=[
-                    ft.Text("Clientes", size=28, font_family="JosefinBold"),
-                    self.campo_pesquisa,
-                    ft.Container(
-                        bgcolor="white",
-                        padding=10,
-                        border_radius=10,
-                        border=ft.border.all(1, "#D2D2D2"),
-                        height=500,
-                        width=1000,
-                        content=ft.Column(
-                            spacing=0,
-                            controls=[tabela_header, tabela_scroll]
-                        )
-                    )
-                ]
-            )
-        )
+        return container
 
     def run(self, page: ft.Page):
         self.page = page
