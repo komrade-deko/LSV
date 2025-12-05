@@ -3,7 +3,10 @@ import os
 from src.modules.utils import *
 
 pedidos_producao = 47
-menu_lateral_style = ft.ButtonStyle(color="black",text_style=ft.TextStyle(font_family="JosefinLight",size=16,weight=ft.FontWeight.BOLD),alignment=ft.alignment.center_left)
+menu_lateral_style = ft.ButtonStyle(color="black", text_style=ft.TextStyle(font_family="JosefinLight", size=16,
+                                                                           weight=ft.FontWeight.BOLD),
+                                    alignment=ft.alignment.center_left)
+
 
 class AdmWindow:
     def __init__(self):
@@ -64,7 +67,7 @@ class AdmWindow:
                 title=ft.Text("Sair"),
                 content=ft.Text("Tem certeza que deseja sair?"),
                 actions=[
-                    ft.TextButton("Sair",style=salvar_style ,on_click=sair,),
+                    ft.TextButton("Sair", style=salvar_style, on_click=sair, ),
                     ft.TextButton("Cancelar", on_click=fechar, style=cancelar_style),
                 ],
                 actions_alignment="end",
@@ -301,8 +304,8 @@ class AdmWindow:
                 width=340
             ),
             actions=[
-                ft.TextButton("Salvar",style=salvar_style, on_click=salvar_modal),
-                ft.TextButton("Cancelar",style=cancelar_style, on_click=lambda e: fechar_modal(modal, page)),
+                ft.TextButton("Salvar", style=salvar_style, on_click=salvar_modal),
+                ft.TextButton("Cancelar", style=cancelar_style, on_click=lambda e: fechar_modal(modal, page)),
             ],
             shape=ft.RoundedRectangleBorder(radius=7)
         )
@@ -347,9 +350,7 @@ class AdmWindow:
             conn.close()
 
             fechar_modal(modal, page)
-
-            self.main_content.content = self._clientes_()
-            self.main_content.update()
+            self._atualizar_tabela_clientes()
 
         modal = ft.AlertDialog(
             modal=True,
@@ -394,7 +395,7 @@ class AdmWindow:
         )
 
         estoque = ft.TextField(
-            label = "Estoque",
+            label="Estoque",
             on_change=lambda e: (apenas_numeros(e), limpar_erro(e))
         )
 
@@ -414,9 +415,7 @@ class AdmWindow:
             conn.close()
 
             fechar_modal(modal, page)
-
-            self.main_content.content = self._estoque_()
-            self.main_content.update()
+            self._atualizar_tabela_estoque()
 
         modal = ft.AlertDialog(
             modal=True,
@@ -602,62 +601,106 @@ class AdmWindow:
         return menu_superior
 
     def _estoque_(self):
-        container, atualizar_fn, campo_pesquisa, data_body = tabela_generica(
-            page=self.page,
+        colunas_config = [
+            {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int"},
+            {"nome": "Produto", "campo": "nome", "largura": 200, "tipo": "text"},
+            {"nome": "Preço", "campo": "preco", "largura": 150, "tipo": "float"},
+            {"nome": "Estoque", "campo": "estoque", "largura": 150, "tipo": "int"},
+        ]
+
+        def validar_produto(vals):
+            if not vals[0] or not vals[0].strip():
+                return False
+            try:
+                float(vals[1])
+                int(vals[2])
+                return True
+            except:
+                return False
+
+        tabela = criar_tabela_generica(
             instancia=self,
-            conectar_fn=self.conectar,
-            tabela="produtos",
-            colunas=["id", "nome", "preco", "estoque"],
-            coluna_pesquisa=["nome"],
-            filtro_attr="filtro_estoque",
-            titulo="Estoque",
-            header_titles=["ID", "Produto", "Preço", "Estoque"],
-            editar_labels=["Nome", "Preço", "Estoque"],
-            salvar_colunas=["nome", "preco", "estoque"],
-            id_coluna="id",
-            validar_fn_default=lambda vals: True,
-            adicionar_callback=None
+            titulo_tela="Estoque",
+            nome_tabela="produtos",
+            colunas_config=colunas_config,
+            colunas_pesquisa=["nome"],
+            campo_filtro_instancia="filtro_estoque",
+            funcao_atualizar_nome="_atualizar_tabela_estoque",
+            funcao_abrir_modal=self._abrir_modal_estoque_,
+            funcao_validar_editar=validar_produto
         )
-        self.tabela_estoque_body = data_body
 
-        def atualizar_tabela():
-            atualizar_fn()
-
-        self._atualizar_tabela_estoque = atualizar_tabela
-        self.campo_pesquisa_estoque = campo_pesquisa
-
-        return container
+        return ft.Container(
+            padding=20,
+            content=ft.Column(
+                controls=[
+                    tabela["titulo"],
+                    tabela["pesquisa"],
+                    ft.Container(
+                        bgcolor="white",
+                        padding=10,
+                        border_radius=10,
+                        border=ft.border.all(1, "#D2D2D2"),
+                        height=500,
+                        width=1000,
+                        content=ft.Column(
+                            spacing=0,
+                            controls=[tabela["header"], tabela["scroll"]]
+                        )
+                    )
+                ]
+            )
+        )
 
     def _clientes_(self):
-        container, atualizar_fn, campo_pesquisa, data_body = tabela_generica(
-            page=self.page,
+        colunas_config = [
+            {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int"},
+            {"nome": "Nome", "campo": "nome", "largura": 200, "tipo": "text"},
+            {"nome": "Email", "campo": "email", "largura": 250, "tipo": "text"},
+            {"nome": "Telefone", "campo": "telefone", "largura": 150, "tipo": "text"},
+            {"nome": "Criado em", "campo": "criado_em", "largura": 150, "tipo": "date"},
+        ]
+
+        def validar_cliente(vals):
+            if not vals[0] or not vals[0].strip():
+                return False
+            if not vals[2] or not vals[2].strip():
+                return False
+            return True
+
+        tabela = criar_tabela_generica(
             instancia=self,
-            conectar_fn=self.conectar,
-            tabela="clientes",
-            colunas=["id", "nome", "email", "telefone", "criado_em"],
-            coluna_pesquisa=["nome", "telefone"],
-            filtro_attr="filtro_clientes",
-            titulo="Clientes",
-            header_titles=["ID", "Nome", "Email", "Telefone", "Criado em"],
-            editar_labels=["Nome", "Email", "Telefone"],
-            salvar_colunas=["nome", "email", "telefone"],
-            id_coluna="id",
-            validar_fn_default=lambda vals: validar_campos_obrigatorios(
-                ft.TextField(value=vals[0]),
-                ft.TextField(value=vals[2])
-            ),
-            adicionar_callback=None
+            titulo_tela="Clientes",
+            nome_tabela="clientes",
+            colunas_config=colunas_config,
+            colunas_pesquisa=["nome", "telefone"],
+            campo_filtro_instancia="filtro_clientes",
+            funcao_atualizar_nome="_atualizar_tabela_clientes",
+            funcao_abrir_modal=self._abrir_modal_clientes_,
+            funcao_validar_editar=validar_cliente
         )
 
-        self.tabela_body = data_body
-
-        def atualizar_tabela():
-            atualizar_fn()
-
-        self._atualizar_tabela = atualizar_tabela
-        self.campo_pesquisa = campo_pesquisa
-
-        return container
+        return ft.Container(
+            padding=20,
+            content=ft.Column(
+                controls=[
+                    tabela["titulo"],
+                    tabela["pesquisa"],
+                    ft.Container(
+                        bgcolor="white",
+                        padding=10,
+                        border_radius=10,
+                        border=ft.border.all(1, "#D2D2D2"),
+                        height=500,
+                        width=1000,
+                        content=ft.Column(
+                            spacing=0,
+                            controls=[tabela["header"], tabela["scroll"]]
+                        )
+                    )
+                ]
+            )
+        )
 
     def run(self, page: ft.Page):
         self.page = page

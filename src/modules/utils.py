@@ -1,23 +1,12 @@
 import flet as ft
 import sqlite3
 
-salvar_style = ft.ButtonStyle(
-    padding=20,
-    alignment=ft.alignment.center_left,
-    color="#EEEEEE",
-    bgcolor="#273273",
-    shape=ft.RoundedRectangleBorder(radius=7),
-    text_style=ft.TextStyle(size=14, font_family="inter")
-)
-cancelar_style = ft.ButtonStyle(
-    padding=20,
-    alignment=ft.alignment.center,
-    color="#212121",
-    bgcolor="#BDBDBD",
-    shape=ft.RoundedRectangleBorder(radius=7),
-    text_style=ft.TextStyle(size=14, font_family="inter")
-)
-
+salvar_style = ft.ButtonStyle(padding=20, alignment=ft.alignment.center_left, color="#EEEEEE", bgcolor="#273273",
+                              shape=ft.RoundedRectangleBorder(radius=7),
+                              text_style=ft.TextStyle(size=14, font_family="inter"))
+cancelar_style = ft.ButtonStyle(padding=20, alignment=ft.alignment.center, color="#212121", bgcolor="#BDBDBD",
+                                shape=ft.RoundedRectangleBorder(radius=7),
+                                text_style=ft.TextStyle(size=14, font_family="inter"))
 
 def apenas_numeros(e):
     v = ''.join([c for c in e.control.value if c.isdigit()])
@@ -75,14 +64,50 @@ def set_fab(page, color, callback):
     )
     page.update()
 
+def buscar_generico(conectar_fn, tabela, colunas, coluna_pesquisa, texto):
+    conn, cursor = conectar_fn()
+
+    if texto:
+        busca = f"%{texto}%"
+        condicoes = " OR ".join([f"{col} LIKE ?" for col in coluna_pesquisa])
+        sql = f"SELECT {', '.join(colunas)} FROM {tabela} WHERE {condicoes}"
+        cursor.execute(sql, tuple([busca] * len(coluna_pesquisa)))
+    else:
+        sql = f"SELECT {', '.join(colunas)} FROM {tabela}"
+        cursor.execute(sql)
+
+    dados = cursor.fetchall()
+    conn.close()
+    return dados
+
+
+def salvar_generico(conectar_fn, tabela, colunas, id_coluna, item_id, valores):
+    conn, cursor = conectar_fn()
+
+    set_clause = ", ".join([f"{col} = ?" for col in colunas])
+    sql = f"UPDATE {tabela} SET {set_clause} WHERE {id_coluna} = ?"
+
+    cursor.execute(sql, (*valores, item_id))
+    conn.commit()
+    conn.close()
+
+
+def excluir_generico(conectar_fn, tabela, id_coluna, item_id):
+    conn, cursor = conectar_fn()
+    sql = f"DELETE FROM {tabela} WHERE {id_coluna} = ?"
+    cursor.execute(sql, (item_id,))
+    conn.commit()
+    conn.close()
+
+
 def editar_generico(
-    page,
-    titulo,
-    colunas,
-    valores,
-    validar_fn,
-    salvar_sql_fn,
-    atualizar_callback
+        page,
+        titulo,
+        colunas,
+        valores,
+        validar_fn,
+        salvar_sql_fn,
+        atualizar_callback
 ):
     campos = [
         ft.TextField(label=colunas[i], value=str(valores[i]))
@@ -123,32 +148,16 @@ def editar_generico(
     modal.open = True
     page.update()
 
-def salvar_generico(conectar_fn, tabela, colunas, id_coluna, item_id, valores):
-    conn, cursor = conectar_fn()
-
-    set_clause = ", ".join([f"{col} = ?" for col in colunas])
-    sql = f"UPDATE {tabela} SET {set_clause} WHERE {id_coluna} = ?"
-
-    cursor.execute(sql, (*valores, item_id))
-    conn.commit()
-    conn.close()
-
-def excluir_generico(conectar_fn, tabela, id_coluna, item_id):
-    conn, cursor = conectar_fn()
-    sql = f"DELETE FROM {tabela} WHERE {id_coluna} = ?"
-    cursor.execute(sql, (item_id,))
-    conn.commit()
-    conn.close()
 
 def confirmar_excluir_generico(
-    page,
-    titulo,
-    mensagem,
-    conectar_fn,
-    tabela,
-    id_coluna,
-    item_id,
-    atualizar_callback
+        page,
+        titulo,
+        mensagem,
+        conectar_fn,
+        tabela,
+        id_coluna,
+        item_id,
+        atualizar_callback
 ):
     def executar_exclusao(e, dialog):
         excluir_generico(conectar_fn, tabela, id_coluna, item_id)
@@ -188,21 +197,6 @@ def confirmar_excluir_generico(
     dialog.open = True
     page.update()
 
-def buscar_generico(conectar_fn, tabela, colunas, coluna_pesquisa, texto):
-    conn, cursor = conectar_fn()
-
-    if texto:
-        busca = f"%{texto}%"
-        condicoes = " OR ".join([f"{col} LIKE ?" for col in coluna_pesquisa])
-        sql = f"SELECT {', '.join(colunas)} FROM {tabela} WHERE {condicoes}"
-        cursor.execute(sql, tuple([busca] * len(coluna_pesquisa)))
-    else:
-        sql = f"SELECT {', '.join(colunas)} FROM {tabela}"
-        cursor.execute(sql)
-
-    dados = cursor.fetchall()
-    conn.close()
-    return dados
 
 def filtrar_generico(instancia, campo, atualizar_callback):
     def _filter(e):
@@ -210,89 +204,74 @@ def filtrar_generico(instancia, campo, atualizar_callback):
         atualizar_callback()
     return _filter
 
-def tabela_generica(
-    page,
-    instancia,
-    conectar_fn,
-    tabela,
-    colunas,
-    coluna_pesquisa,
-    filtro_attr,
-    titulo,
-    header_titles=None,
-    editar_labels=None,
-    salvar_colunas=None,
-    id_coluna="id",
-    validar_fn_default=lambda vals: True,
-
+def criar_tabela_generica(
+        instancia,
+        titulo_tela,
+        nome_tabela,
+        colunas_config,
+        colunas_pesquisa,
+        campo_filtro_instancia,
+        funcao_atualizar_nome,
+        funcao_abrir_modal,
+        funcao_validar_editar=None,
+        funcao_extra_editar=None
 ):
-    if header_titles is None:
-        header_titles = colunas.copy()
-    if editar_labels is None:
-        editar_labels = colunas[1:]
-    if salvar_colunas is None:
-        salvar_colunas = colunas[1:]
+
+    campos_banco = [col["campo"] for col in colunas_config]
+    nomes_colunas = [col["nome"] for col in colunas_config]
+    larguras_colunas = [col["largura"] for col in colunas_config]
+
     def montar_rows():
-        texto = getattr(instancia, filtro_attr, "")
+        filtro_atual = getattr(instancia, campo_filtro_instancia, "")
+
         dados = buscar_generico(
-            conectar_fn=conectar_fn,
-            tabela=tabela,
-            colunas=colunas,
-            coluna_pesquisa=coluna_pesquisa,
-            texto=texto
+            conectar_fn=instancia.conectar,
+            tabela=nome_tabela,
+            colunas=campos_banco,
+            coluna_pesquisa=colunas_pesquisa,
+            texto=filtro_atual
         )
 
         linhas = []
-        for row in dados:
-            row_id = row[0]
-            valores = list(row[1:])
-            def make_editar_item(row_id=row_id, valores=valores):
-                return ft.PopupMenuItem(
-                    text="Editar",
-                    on_click=lambda e, rid=row_id, vals=valores: editar_generico(
-                        page,
-                        f"Editar {titulo[:-1] if titulo.endswith('s') else titulo}",
-                        editar_labels,
-                        vals,
-                        validar_fn=lambda vals_new: validar_fn_default(vals_new),
-                        salvar_sql_fn=lambda vals_new, rid=rid: salvar_generico(
-                            conectar_fn=conectar_fn,
-                            tabela=tabela,
-                            colunas=salvar_colunas,
-                            id_coluna=id_coluna,
-                            item_id=rid,
-                            valores=vals_new
-                        ),
-                        atualizar_callback=lambda: atualizar_fn()
-                    )
+
+        for linha in dados:
+            cells = []
+            for i, valor in enumerate(linha):
+                cells.append(
+                    ft.DataCell(
+                        ft.Container(ft.Text(str(valor) if valor is not None else "-"), width=larguras_colunas[i]))
                 )
 
-            def make_apagar_item(row_id=row_id, display_text=str(row[1]) if len(row) > 1 else str(row_id)):
-                return ft.PopupMenuItem(
-                    text="Apagar",
-                    on_click=lambda e, rid=row_id, disp=display_text: confirmar_excluir_generico(
-                        page=page,
-                        titulo="Confirmar exclusão",
-                        mensagem=f"Tem certeza que deseja excluir '{disp}'?",
-                        conectar_fn=conectar_fn,
-                        tabela=tabela,
-                        id_coluna=id_coluna,
-                        item_id=rid,
-                        atualizar_callback=lambda: atualizar_fn()
-                    )
-                )
+            item_id = linha[0]
 
             menu = ft.PopupMenuButton(
                 items=[
-                    make_editar_item(),
-                    make_apagar_item()
+                    ft.PopupMenuItem(
+                        text="Editar",
+                        on_click=lambda e, item_id=item_id, linha=linha: _abrir_editar(
+                            instancia,
+                            nome_tabela,
+                            item_id,
+                            campos_banco,
+                            nomes_colunas,
+                            linha,
+                            funcao_validar_editar,
+                            funcao_extra_editar
+                        )
+                    ),
+                    ft.PopupMenuItem(
+                        text="Apagar",
+                        on_click=lambda e, item_id=item_id, linha=linha: _confirmar_excluir(
+                            instancia,
+                            nome_tabela,
+                            campos_banco[0],
+                            item_id,
+                            linha,
+                            nomes_colunas
+                        )
+                    ),
                 ]
             )
-
-            cells = []
-            for i, val in enumerate(row):
-                txt = "-" if (val is None or (isinstance(val, str) and not val.strip())) else str(val)
-                cells.append(ft.DataCell(ft.Container(ft.Text(txt), width=None)))
 
             cells.append(ft.DataCell(menu))
 
@@ -300,61 +279,100 @@ def tabela_generica(
 
         return linhas
 
-    data_body = ft.DataTable(
-        columns=[ft.DataColumn(ft.Text("")) for _ in range(len(colunas) + 1)],
+    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha, funcao_validar,
+                      funcao_extra):
+        valores_edicao = linha[1:]
+        nomes_edicao = nomes_colunas[1:]
+        campos_edicao = campos_banco[1:]
+
+        def validar_padrao(vals):
+            return True
+
+        validar_fn = funcao_validar if funcao_validar else validar_padrao
+
+        def salvar_fn(valores):
+            salvar_generico(
+                conectar_fn=instancia.conectar,
+                tabela=nome_tabela,
+                colunas=campos_edicao,
+                id_coluna=campos_banco[0],
+                item_id=item_id,
+                valores=valores
+            )
+            if funcao_extra:
+                funcao_extra()
+
+        editar_generico(
+            page=instancia.page,
+            titulo=f"Editar {titulo_tela[:-1]}",  # Remove 's' do final
+            colunas=nomes_edicao,
+            valores=valores_edicao,
+            validar_fn=validar_fn,
+            salvar_sql_fn=salvar_fn,
+            atualizar_callback=lambda: getattr(instancia, funcao_atualizar_nome)()
+        )
+
+    def _confirmar_excluir(instancia, nome_tabela, id_coluna, item_id, linha, nomes_colunas):
+        nome_item = linha[1] if len(linha) > 1 else str(item_id)
+
+        confirmar_excluir_generico(
+            page=instancia.page,
+            titulo="Confirmar exclusão",
+            mensagem=f"Tem certeza que deseja excluir '{nome_item}'?",
+            conectar_fn=instancia.conectar,
+            tabela=nome_tabela,
+            id_coluna=id_coluna,
+            item_id=item_id,
+            atualizar_callback=lambda: getattr(instancia, funcao_atualizar_nome)()
+        )
+
+    tabela_body = ft.DataTable(
+        columns=[ft.DataColumn(ft.Text("")) for _ in range(len(colunas_config) + 1)],
         rows=montar_rows(),
         heading_row_height=0,
         column_spacing=20,
         show_bottom_border=False,
     )
 
-    def atualizar_fn():
-        novas = montar_rows()
-        data_body.rows = novas
-        data_body.update()
+    def atualizar_tabela():
+        novas_linhas = montar_rows()
+        tabela_body.rows = novas_linhas
+        tabela_body.update()
+
+    setattr(instancia, funcao_atualizar_nome, atualizar_tabela)
+
+    tabela_header = ft.DataTable(
+        columns=[
+                    ft.DataColumn(ft.Container(content=ft.Text(nome), width=largura))
+                    for nome, largura in zip(nomes_colunas, larguras_colunas)
+                ] + [ft.DataColumn(ft.Container(content=ft.Text("Ações"), width=100))],
+        rows=[],
+        heading_row_color="#E0E0E0",
+        border=ft.border.only(bottom=ft.BorderSide(1, "#CCCCCC")),
+        column_spacing=20,
+    )
+
+    tabela_scroll = ft.ListView(
+        expand=True,
+        controls=[ft.Container(content=tabela_body, expand=True)]
+    )
 
     campo_pesquisa = ft.TextField(
         label="Pesquisar",
         prefix_icon=ft.Icons.SEARCH,
-        value=getattr(instancia, filtro_attr, ""),
+        value=getattr(instancia, campo_filtro_instancia, ""),
         on_change=filtrar_generico(
             instancia=instancia,
-            campo=filtro_attr,
-            atualizar_callback=atualizar_fn
+            campo=campo_filtro_instancia,
+            atualizar_callback=atualizar_tabela
         )
     )
 
-    container = ft.Container(
-        padding=20,
-        content=ft.Column(
-            controls=[
-                ft.Text(titulo, size=28, font_family="JosefinBold"),
-                campo_pesquisa,
-                ft.Container(
-                    bgcolor="white",
-                    padding=10,
-                    border_radius=10,
-                    border=ft.border.all(1, "#D2D2D2"),
-                    height=500,
-                    width=1000,
-                    content=ft.Column(
-                        spacing=0,
-                        controls=[
-                            ft.DataTable(
-                                columns=[ft.DataColumn(ft.Container(content=ft.Text(h), width=250 if i > 0 else 50)) for i, h in enumerate(header_titles + [""])],
-                                rows=[],
-                                heading_row_color="#E0E0E0",
-                                border=ft.border.only(bottom=ft.BorderSide(1, "#CCCCCC")),
-                                column_spacing=20,
-                            ),
-                            ft.ListView(
-                                expand=True,
-                                controls=[ft.Container(content=data_body, expand=True)]
-                            )
-                        ]
-                    )
-                )
-            ]
-        )
-    )
-    return container, atualizar_fn, campo_pesquisa, data_body
+    return {
+        "titulo": ft.Text(titulo_tela, size=28, font_family="JosefinBold"),
+        "pesquisa": campo_pesquisa,
+        "header": tabela_header,
+        "body": tabela_body,
+        "scroll": tabela_scroll,
+        "atualizar": atualizar_tabela
+    }
