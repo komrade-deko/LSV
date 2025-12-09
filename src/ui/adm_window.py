@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import flet as ft
 from src.modules.utils import *
 
 pedidos_producao = 47
@@ -24,8 +25,8 @@ class AdmWindow:
 
     def _adm_window_(self, page: ft.Page):
         page.title = "ADM"
-        page.window_width = 554
-        page.window_height = 444
+        page.window_width = 1200
+        page.window_height = 800
         page.padding = ft.padding.only(left=0, top=0, right=0, bottom=0)
         page.bgcolor = "#F8F8F8"
 
@@ -140,11 +141,10 @@ class AdmWindow:
         return menu
 
     def _abrir_modal_pedido_(self, page):
-        opcoes_pedido = [
-            "Bandeja", "Bandenja(quina)", "Escora", "Tripe",
-            "Andaime Tubular", "Andaime Fachadeiro", "Viga Matalica",
-            "Barra de Ancoragem", "Aprumador de Pilar", "Forcado"
-        ]
+        conn, cursor = self.conectar()
+        cursor.execute("SELECT nome FROM produtos")
+        opcoes_pedido = [row[0] for row in cursor.fetchall()]
+        conn.close()
 
         linhas_container = ft.ListView(spacing=5, height=90, auto_scroll=False)
 
@@ -171,7 +171,7 @@ class AdmWindow:
                 linha.btn_remove.disabled = (i == 0)
                 linha.btn_remove.opacity = 0 if i == 0 else 1
 
-            if total < limite:
+            if total < limite and linhas_container.controls:
                 ultimo = linhas_container.controls[-1]
                 ultimo.btn_add.visible = True
                 ultimo.btn_add.disabled = False
@@ -286,8 +286,7 @@ class AdmWindow:
             print("Data de Entrega:", data_field.value)
             print("Pedidos:", pedidos)
 
-            modal.open = False
-            page.update()
+            fechar_modal(modal, page)
 
         modal = ft.AlertDialog(
             modal=True,
@@ -548,7 +547,7 @@ class AdmWindow:
                 ),
                 ft.Container(
                     width=300,
-                    height=100, #x
+                    height=100,
                     bgcolor="white",
                     border_radius=15,
                     padding=10,
@@ -583,11 +582,11 @@ class AdmWindow:
             border_radius=ft.border_radius.only(top_right=20, top_left=20),
             alignment=ft.alignment.top_left,
             margin=ft.margin.only(top=10, left=5, right=10),
-            padding=ft.padding.only(top=10, left=10, right=20),
+            padding=ft.padding.only(top=10, left=10, right=20, bottom=20),
             content=ft.Column(
                 spacing=20,
                 horizontal_alignment=ft.CrossAxisAlignment.START,
-                scroll="auto",
+                scroll=ft.ScrollMode.AUTO,
                 controls=[
                     ft.Text("Pedidos", font_family="JosefinBold", size=28),
                     cards_estatisticas,
@@ -605,11 +604,11 @@ class AdmWindow:
                             controls=[
                                 tabela["header"],
                                 tabela["scroll"],
-                                ft.Container(height=40)
+                                ft.Container(height=40)  # espaço extra ao final da tabela
                             ]
                         )
                     ),
-                    ft.Container(height=10)
+                    ft.Container(height=10)  # espaçamento entre a tabela e o final da página
                 ],
             ),
         )
