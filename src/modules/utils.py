@@ -13,6 +13,38 @@ def apenas_numeros(e):
     e.control.value = v
     e.control.update()
 
+def formatar_valor(e):
+    v = e.control.value
+
+    numeros = ""
+    decimais = ""
+    tem_virgula = False
+
+    for c in v:
+        if c.isdigit():
+            if not tem_virgula:
+                numeros += c
+            else:
+                if len(decimais) < 2:
+                    decimais += c
+        elif c == "," and not tem_virgula:
+            tem_virgula = True
+
+    if numeros == "":
+        numeros = "0"
+
+    parte_int = numeros[::-1]
+    grupos = [parte_int[i:i+3] for i in range(0, len(parte_int), 3)]
+    parte_int = ".".join(grupos)[::-1]
+
+    if tem_virgula:
+        num = parte_int + "," + decimais
+    else:
+        num = parte_int
+
+    e.control.value = num
+    e.control.update()
+
 def limpar_erro(e):
     c = e.control
     if c.value and c.value.strip():
@@ -99,7 +131,6 @@ def excluir_generico(conectar_fn, tabela, id_coluna, item_id):
     conn.commit()
     conn.close()
 
-
 def editar_generico(
         page,
         titulo,
@@ -107,12 +138,36 @@ def editar_generico(
         valores,
         validar_fn,
         salvar_sql_fn,
-        atualizar_callback
+        atualizar_callback,
+        on_change_handlers=None
 ):
-    campos = [
-        ft.TextField(label=colunas[i], value=str(valores[i]))
-        for i in range(len(colunas))
-    ]
+    campos = []
+    for i in range(len(colunas)):
+        label = colunas[i]
+        value = str(valores[i])
+
+        on_change_handler = None
+        if on_change_handlers and i < len(on_change_handlers):
+            on_change_handler = on_change_handlers[i]
+
+        read_only = False
+
+        lbl_lower = label.lower()
+        if not on_change_handler:
+            if "telefone" in lbl_lower:
+                on_change_handler = formatar_telefone
+            elif "data" in lbl_lower:
+                on_change_handler = formatar_data
+
+        if lbl_lower in ("criado em", "criado_em", "data_pedido"):
+            read_only = True
+
+        if on_change_handler:
+            campo = ft.TextField(label=label, value=value, on_change=on_change_handler, read_only=read_only)
+        else:
+            campo = ft.TextField(label=label, value=value, read_only=read_only)
+
+        campos.append(campo)
 
     def salvar(e):
         novos_valores = [c.value.strip() for c in campos]
@@ -147,7 +202,6 @@ def editar_generico(
     page.overlay.append(modal)
     modal.open = True
     page.update()
-
 
 def confirmar_excluir_generico(
         page,
@@ -281,9 +335,29 @@ def criar_tabela_generica(
 
     def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha, funcao_validar,
                       funcao_extra):
-        valores_edicao = linha[1:]
-        nomes_edicao = nomes_colunas[1:]
-        campos_edicao = campos_banco[1:]
+        colunas_editaveis = []
+        nomes_editaveis = []
+        valores_editaveis = []
+        on_change_handlers = []
+
+        for i, col in enumerate(colunas_config):
+            if i == 0:
+                continue
+            if col.get("editable", True):
+                colunas_editaveis.append(col["campo"])
+                nomes_editaveis.append(col["nome"])
+                valores_editaveis.append(linha[i])
+
+                handler = None
+                if "on_change" in col:
+                    handler = col.get("on_change")
+                elif "onchange" in col:
+                    handler = col.get("onchange")
+
+                if isinstance(handler, str):
+                    handler = globals().get(handler)
+
+                on_change_handlers.append(handler)
 
         def validar_padrao(vals):
             return True
@@ -294,7 +368,7 @@ def criar_tabela_generica(
             salvar_generico(
                 conectar_fn=instancia.conectar,
                 tabela=nome_tabela,
-                colunas=campos_edicao,
+                colunas=colunas_editaveis,
                 id_coluna=campos_banco[0],
                 item_id=item_id,
                 valores=valores
@@ -302,14 +376,16 @@ def criar_tabela_generica(
             if funcao_extra:
                 funcao_extra()
 
+        # passa também os on_change_handlers para o editor genérico
         editar_generico(
             page=instancia.page,
             titulo=f"Editar {titulo_tela[:-1]}",
-            colunas=nomes_edicao,
-            valores=valores_edicao,
+            colunas=nomes_editaveis,
+            valores=valores_editaveis,
             validar_fn=validar_fn,
             salvar_sql_fn=salvar_fn,
-            atualizar_callback=lambda: getattr(instancia, funcao_atualizar_nome)()
+            atualizar_callback=lambda: getattr(instancia, funcao_atualizar_nome)(),
+            on_change_handlers=on_change_handlers
         )
 
     def _confirmar_excluir(instancia, nome_tabela, id_coluna, item_id, linha, nomes_colunas):

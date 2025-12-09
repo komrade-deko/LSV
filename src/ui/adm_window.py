@@ -1,6 +1,4 @@
-import sqlite3
 import os
-import flet as ft
 from src.modules.utils import *
 
 pedidos_producao = 47
@@ -262,6 +260,32 @@ class AdmWindow:
             on_change=lambda e: (formatar_data(e), limpar_erro(e))
         )
 
+        def abrir_confirmacao_criar_cliente():
+            def cancelar(e):
+                dialog.open = False
+                page.update()
+
+            def criar(e):
+                dialog.open = False
+                page.update()
+                # abre o modal de criar cliente para o usuário
+                self._abrir_modal_clientes_(page)
+
+            dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Cliente não encontrado"),
+                content=ft.Text("Cliente não encontrado, deseja criar o cliente?"),
+                actions=[
+                    ft.TextButton("Cancelar", on_click=cancelar, style=cancelar_style),
+                    ft.TextButton("Criar", on_click=criar, style=salvar_style),
+                ],
+                actions_alignment="end",
+            )
+
+            page.overlay.append(dialog)
+            dialog.open = True
+            page.update()
+
         def salvar_modal(e):
             erro = False
 
@@ -282,7 +306,23 @@ class AdmWindow:
             if erro:
                 return
 
-            print("Cliente:", cliente_field.value)
+            nome_cliente = cliente_field.value.strip()
+
+            # verificar se cliente existe
+            conn_check, cursor_check = self.conectar()
+            cursor_check.execute("SELECT id FROM clientes WHERE nome = ?", (nome_cliente,))
+            row = cursor_check.fetchone()
+            conn_check.close()
+
+            if not row:
+                # cliente não encontrado -> perguntar se deseja criar
+                abrir_confirmacao_criar_cliente()
+                return
+
+            cliente_id = row[0]
+
+            # por enquanto apenas printar (ou aqui você pode inserir lógica para criar pedido/itens)
+            print("Cliente:", nome_cliente, " (id:", cliente_id, ")")
             print("Data de Entrega:", data_field.value)
             print("Pedidos:", pedidos)
 
@@ -299,7 +339,7 @@ class AdmWindow:
                 ],
                 spacing=10,
                 tight=True,
-                width=340
+                width=400
             ),
             actions=[
                 ft.TextButton("Salvar", style=salvar_style, on_click=salvar_modal),
@@ -332,20 +372,45 @@ class AdmWindow:
         )
 
         def salvar_modal(e):
+            nome = nome_cliente.value.strip()
+            email = email_cliente.value.strip() if email_cliente.value else None
+            tel = telefone_cliente.value.strip()
+
             if not validar_campos_obrigatorios(nome_cliente, telefone_cliente):
                 return
 
-            cursor.execute("""
-                INSERT INTO clientes (nome, email, telefone)
-                VALUES (?, ?, ?)
-            """, (
-                nome_cliente.value.strip(),
-                email_cliente.value.strip() if email_cliente.value else None,
-                telefone_cliente.value.strip()
-            ))
+            cursor.execute("SELECT COUNT(*) FROM clientes WHERE nome = ?", (nome,))
+            nome_existe = cursor.fetchone()[0] > 0
 
-            conn.commit()
-            conn.close()
+            if nome_existe:
+                nome_cliente.error_text = "⚠️ Este cliente já existe"
+                nome_cliente.update()
+                return
+
+            if email:
+                cursor.execute("SELECT COUNT(*) FROM clientes WHERE email = ?", (email,))
+                email_existe = cursor.fetchone()[0] > 0
+
+                if email_existe:
+                    email_cliente.error_text = "⚠️ Este email já está cadastrado"
+                    email_cliente.update()
+                    return
+
+            try:
+                cursor.execute("""
+                    INSERT INTO clientes (nome, email, telefone)
+                    VALUES (?, ?, ?)
+                """, (nome, email, tel))
+
+                conn.commit()
+
+            except Exception as err:
+                email_cliente.error_text = "⚠️ Erro ao salvar: email duplicado"
+                email_cliente.update()
+                return
+
+            finally:
+                conn.close()
 
             fechar_modal(modal, page)
             self._atualizar_tabela_clientes()
@@ -364,13 +429,9 @@ class AdmWindow:
                 width=340
             ),
             actions=[
-                ft.TextButton(
-                    "Salvar", style=salvar_style, on_click=salvar_modal
-                ),
-                ft.TextButton(
-                    "Cancelar", style=cancelar_style,
-                    on_click=lambda e: fechar_modal(modal, page)
-                )
+                ft.TextButton("Salvar", style=salvar_style, on_click=salvar_modal),
+                ft.TextButton("Cancelar", style=cancelar_style,
+                              on_click=lambda e: fechar_modal(modal, page))
             ],
             shape=ft.RoundedRectangleBorder(radius=7)
         )
@@ -387,9 +448,9 @@ class AdmWindow:
         )
 
         preco = ft.TextField(
-            label="Preço",
+            label="Preço Unitário",
             prefix_text="R$",
-            on_change=limpar_erro
+            on_change=lambda e:(formatar_valor(e), limpar_erro(e))
         )
 
         estoque = ft.TextField(
@@ -449,42 +510,37 @@ class AdmWindow:
 
     def _pedidos_(self):
         colunas_config = [
-            {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int"},
-            {"nome": "Produto ID", "campo": "produto_id", "largura": 120, "tipo": "int"},
-            {"nome": "Pedido ID", "campo": "pedido_id", "largura": 120, "tipo": "int"},
-            {"nome": "Quantidade", "campo": "quantidade", "largura": 120, "tipo": "int"},
+            {"nome": "Cliente ID", "campo": "cliente_id", "largura": 120, "tipo": "int"},
+            {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str"},
+            {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int"},
+            {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float"},
         ]
 
-        def validar_item_pedido(vals):
+        def validar_pedido(vals):
             try:
-                if not vals[0] or not vals[0].strip():
-                    return False
                 int(vals[0])
-                if not vals[1] or not vals[1].strip():
-                    return False
                 int(vals[1])
-                if not vals[2] or not vals[2].strip():
+                if not vals[2] or not vals[3]:
                     return False
-                qtd = int(vals[2])
-                if qtd < 0:
-                    return False
+                int(vals[4])
+                float(vals[5])
                 return True
-            except (ValueError, IndexError):
+            except:
                 return False
 
-        if not hasattr(self, 'filtro_itens_pedido'):
-            self.filtro_itens_pedido = ""
+        if not hasattr(self, 'filtro_pedidos'):
+            self.filtro_pedidos = ""
 
         tabela = criar_tabela_generica(
             instancia=self,
-            titulo_tela="Itens de Pedido",
-            nome_tabela="itens_pedido",
+            titulo_tela="Pedidos",
+            nome_tabela="pedidos",
             colunas_config=colunas_config,
-            colunas_pesquisa=["produto_id", "pedido_id"],
-            campo_filtro_instancia="filtro_itens_pedido",
-            funcao_atualizar_nome="_atualizar_tabela_itens_pedido",
+            colunas_pesquisa=["cliente_id", "numero_pedido"],
+            campo_filtro_instancia="filtro_pedidos",
+            funcao_atualizar_nome="_atualizar_tabela_pedidos",
             funcao_abrir_modal=self._abrir_modal_pedido_,
-            funcao_validar_editar=validar_item_pedido
+            funcao_validar_editar=validar_pedido
         )
 
         cards_estatisticas = ft.Row(
@@ -503,10 +559,7 @@ class AdmWindow:
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                         spacing=15,
                         controls=[
-                            ft.Container(
-                                ft.Image(src="loja.svg", width=50, height=50),
-                                margin=ft.margin.only(left=20),
-                            ),
+                            ft.Container(ft.Image(src="loja.svg", width=50, height=50), margin=ft.margin.only(left=20)),
                             ft.Column(
                                 spacing=-10,
                                 alignment=ft.MainAxisAlignment.CENTER,
@@ -530,10 +583,8 @@ class AdmWindow:
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                         spacing=15,
                         controls=[
-                            ft.Container(
-                                ft.Image(src="calendario.svg", width=50, height=50),
-                                margin=ft.margin.only(left=20),
-                            ),
+                            ft.Container(ft.Image(src="calendario.svg", width=50, height=50),
+                                         margin=ft.margin.only(left=20)),
                             ft.Column(
                                 spacing=-10,
                                 alignment=ft.MainAxisAlignment.CENTER,
@@ -557,10 +608,8 @@ class AdmWindow:
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                         spacing=15,
                         controls=[
-                            ft.Container(
-                                ft.Image(src="caminhao.svg", width=50, height=50),
-                                margin=ft.margin.only(left=20),
-                            ),
+                            ft.Container(ft.Image(src="caminhao.svg", width=50, height=50),
+                                         margin=ft.margin.only(left=20)),
                             ft.Column(
                                 spacing=-10,
                                 alignment=ft.MainAxisAlignment.CENTER,
@@ -604,11 +653,11 @@ class AdmWindow:
                             controls=[
                                 tabela["header"],
                                 tabela["scroll"],
-                                ft.Container(height=40)  # espaço extra ao final da tabela
+                                ft.Container(height=40)
                             ]
                         )
                     ),
-                    ft.Container(height=10)  # espaçamento entre a tabela e o final da página
+                    ft.Container(height=10)
                 ],
             ),
         )
@@ -617,16 +666,21 @@ class AdmWindow:
         colunas_config = [
             {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int"},
             {"nome": "Produto", "campo": "nome", "largura": 300, "tipo": "text"},
-            {"nome": "Preço", "campo": "preco", "largura": 200, "tipo": "float"},
-            {"nome": "Estoque", "campo": "estoque", "largura": 250, "tipo": "int"},
+            {"nome": "Preço", "campo": "preco", "largura": 200, "tipo": "float","editable": True, "onchange": formatar_valor},
+            {"nome": "Estoque", "campo": "estoque", "largura": 250, "tipo": "int","editable": True,"on_change": apenas_numeros},
         ]
 
         def validar_produto(vals):
-            if not vals[0] or not vals[0].strip():
+            nome = vals[0].strip()
+            preco = vals[1].replace(",", ".").strip()
+            estoque = vals[2].strip()
+
+            if not nome:
                 return False
+
             try:
-                float(vals[1])
-                int(vals[2])
+                float(preco)
+                int(estoque)
                 return True
             except:
                 return False
@@ -667,11 +721,12 @@ class AdmWindow:
 
     def _clientes_(self):
         colunas_config = [
-            {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int"},
-            {"nome": "Nome", "campo": "nome", "largura": 200, "tipo": "text"},
-            {"nome": "Email", "campo": "email", "largura": 250, "tipo": "text"},
-            {"nome": "Telefone", "campo": "telefone", "largura": 150, "tipo": "text"},
-            {"nome": "Criado em", "campo": "criado_em", "largura": 150, "tipo": "date"},
+            {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int", "editable": False},
+            {"nome": "Nome", "campo": "nome", "largura": 200, "tipo": "text", "editable": True},
+            {"nome": "Email", "campo": "email", "largura": 250, "tipo": "text", "editable": True},
+            {"nome": "Telefone", "campo": "telefone", "largura": 150, "tipo": "text", "editable": True,
+             "on_change": formatar_telefone},
+            {"nome": "Criado em", "campo": "criado_em", "largura": 150, "tipo": "date", "editable": False},
         ]
 
         def validar_cliente(vals):

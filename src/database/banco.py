@@ -51,9 +51,15 @@ cursor = banco.cursor()
 # proximo_numero = cursor.fetchone()[0]
 
 # cursor.execute(
-#     "INSERT INTO pedidos (cliente_id, data_entrega, numero_pedido, valor) VALUES (?,?,?,?)",
-#     (2, "07/02/2026", proximo_numero, 1950)
+#     "INSERT INTO itens_pedido (produto_id, pedido_id, quantidade) VALUES (?,?,?)",
+#     (1,2,50 )
 # )
+cursor.execute(
+    """
+    ALTER TABLE pedidos 
+    ADD COLUMN status TEXT DEFAULT 'Em Produção'
+    """
+)
 
 banco.commit()
 banco.close()
