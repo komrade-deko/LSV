@@ -304,7 +304,7 @@ def criar_tabela_generica(
 
         editar_generico(
             page=instancia.page,
-            titulo=f"Editar {titulo_tela[:-1]}",  # Remove 's' do final
+            titulo=f"Editar {titulo_tela[:-1]}",
             colunas=nomes_edicao,
             valores=valores_edicao,
             validar_fn=validar_fn,

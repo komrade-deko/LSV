@@ -3,15 +3,14 @@ import os
 from src.modules.utils import *
 
 pedidos_producao = 47
-menu_lateral_style = ft.ButtonStyle(color="black", text_style=ft.TextStyle(font_family="JosefinLight", size=16,
-                                                                           weight=ft.FontWeight.BOLD),
-                                    alignment=ft.alignment.center_left)
+menu_lateral_style = ft.ButtonStyle(color="black", text_style=ft.TextStyle(font_family="JosefinLight", size=16,weight=ft.FontWeight.BOLD),alignment=ft.alignment.center_left)
 
 
 class AdmWindow:
     def __init__(self):
         self.filtro_clientes = ""
         self.filtro_estoque = ""
+        self.filtro_pedidos = ""
         self.tabela_body = None
         self.pesquisa_input = None
 
@@ -450,7 +449,134 @@ class AdmWindow:
         page.update()
 
     def _pedidos_(self):
-        menu_superior = ft.Container(
+        colunas_config = [
+            {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int"},
+            {"nome": "Produto ID", "campo": "produto_id", "largura": 120, "tipo": "int"},
+            {"nome": "Pedido ID", "campo": "pedido_id", "largura": 120, "tipo": "int"},
+            {"nome": "Quantidade", "campo": "quantidade", "largura": 120, "tipo": "int"},
+        ]
+
+        def validar_item_pedido(vals):
+            try:
+                if not vals[0] or not vals[0].strip():
+                    return False
+                int(vals[0])
+                if not vals[1] or not vals[1].strip():
+                    return False
+                int(vals[1])
+                if not vals[2] or not vals[2].strip():
+                    return False
+                qtd = int(vals[2])
+                if qtd < 0:
+                    return False
+                return True
+            except (ValueError, IndexError):
+                return False
+
+        if not hasattr(self, 'filtro_itens_pedido'):
+            self.filtro_itens_pedido = ""
+
+        tabela = criar_tabela_generica(
+            instancia=self,
+            titulo_tela="Itens de Pedido",
+            nome_tabela="itens_pedido",
+            colunas_config=colunas_config,
+            colunas_pesquisa=["produto_id", "pedido_id"],
+            campo_filtro_instancia="filtro_itens_pedido",
+            funcao_atualizar_nome="_atualizar_tabela_itens_pedido",
+            funcao_abrir_modal=self._abrir_modal_pedido_,
+            funcao_validar_editar=validar_item_pedido
+        )
+
+        cards_estatisticas = ft.Row(
+            spacing=20,
+            alignment=ft.MainAxisAlignment.CENTER,
+            controls=[
+                ft.Container(
+                    width=300,
+                    height=100,
+                    bgcolor="white",
+                    border_radius=15,
+                    padding=10,
+                    border=ft.border.all(1, "#CBCBCB"),
+                    content=ft.Row(
+                        alignment=ft.MainAxisAlignment.START,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        spacing=15,
+                        controls=[
+                            ft.Container(
+                                ft.Image(src="loja.svg", width=50, height=50),
+                                margin=ft.margin.only(left=20),
+                            ),
+                            ft.Column(
+                                spacing=-10,
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                controls=[
+                                    ft.Text("47", font_family="JosefinBold", size=26),
+                                    ft.Text("Pedidos", size=16, color="#B7B89F"),
+                                ],
+                            ),
+                        ],
+                    ),
+                ),
+                ft.Container(
+                    width=300,
+                    height=100,
+                    bgcolor="white",
+                    border_radius=15,
+                    padding=10,
+                    border=ft.border.all(1, "#CBCBCB"),
+                    content=ft.Row(
+                        alignment=ft.MainAxisAlignment.START,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        spacing=15,
+                        controls=[
+                            ft.Container(
+                                ft.Image(src="calendario.svg", width=50, height=50),
+                                margin=ft.margin.only(left=20),
+                            ),
+                            ft.Column(
+                                spacing=-10,
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                controls=[
+                                    ft.Text("47", font_family="JosefinBold", size=26),
+                                    ft.Text("Em Produção", size=16, color="#B7B89F"),
+                                ],
+                            ),
+                        ],
+                    ),
+                ),
+                ft.Container(
+                    width=300,
+                    height=100, #x
+                    bgcolor="white",
+                    border_radius=15,
+                    padding=10,
+                    border=ft.border.all(1, "#CBCBCB"),
+                    content=ft.Row(
+                        alignment=ft.MainAxisAlignment.START,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        spacing=15,
+                        controls=[
+                            ft.Container(
+                                ft.Image(src="caminhao.svg", width=50, height=50),
+                                margin=ft.margin.only(left=20),
+                            ),
+                            ft.Column(
+                                spacing=-10,
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                controls=[
+                                    ft.Text("47", font_family="JosefinBold", size=26),
+                                    ft.Text("Em Entrega", size=16, color="#B7B89F"),
+                                ],
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        )
+
+        return ft.Container(
             expand=True,
             bgcolor="#FDF4F5",
             width=200,
@@ -461,151 +587,39 @@ class AdmWindow:
             content=ft.Column(
                 spacing=20,
                 horizontal_alignment=ft.CrossAxisAlignment.START,
+                scroll="auto",
                 controls=[
-                    ft.Text(
-                        "Pedidos",
-                        font_family="JosefinBold",
-                        size=22,
+                    ft.Text("Pedidos", font_family="JosefinBold", size=28),
+                    cards_estatisticas,
+                    tabela["titulo"],
+                    tabela["pesquisa"],
+                    ft.Container(
+                        bgcolor="white",
+                        padding=10,
+                        border_radius=10,
+                        border=ft.border.all(1, "#D2D2D2"),
+                        height=500,
+                        width=1000,
+                        content=ft.Column(
+                            spacing=0,
+                            controls=[
+                                tabela["header"],
+                                tabela["scroll"],
+                                ft.Container(height=40)
+                            ]
+                        )
                     ),
-                    ft.Row(
-                        spacing=20,
-                        alignment=ft.MainAxisAlignment.CENTER,
-                        controls=[
-                            ft.Container(
-                                width=300,
-                                height=100,
-                                bgcolor="white",
-                                border_radius=15,
-                                padding=ft.padding.all(10),
-                                border=ft.border.all(1, "#CBCBCB"),
-                                content=ft.Row(
-                                    alignment=ft.MainAxisAlignment.START,
-                                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                                    spacing=15,
-                                    controls=[
-                                        ft.Container(
-                                            ft.Image(
-                                                src="loja.svg",
-                                                width=50,
-                                                height=50,
-                                            ),
-                                            margin=ft.margin.only(left=20),
-                                        ),
-                                        ft.Column(
-                                            spacing=-10,
-                                            alignment=ft.MainAxisAlignment.CENTER,
-                                            controls=[
-                                                ft.Text(
-                                                    "47",
-                                                    font_family="JosefinBold",
-                                                    size=26,
-                                                ),
-                                                ft.Text(
-                                                    "Pedidos",
-                                                    size=16,
-                                                    color="#B7B89F",
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
-                            ),
-                            ft.Container(
-                                width=300,
-                                height=100,
-                                bgcolor="white",
-                                border_radius=15,
-                                padding=ft.padding.all(10),
-                                border=ft.border.all(1, "#CBCBCB"),
-                                content=ft.Row(
-                                    alignment=ft.MainAxisAlignment.START,
-                                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                                    spacing=15,
-                                    controls=[
-                                        ft.Container(
-                                            ft.Image(
-                                                src="calendario.svg",
-                                                width=50,
-                                                height=50,
-                                            ),
-                                            margin=ft.margin.only(left=20),
-                                        ),
-                                        ft.Column(
-                                            spacing=-10,
-                                            alignment=ft.MainAxisAlignment.CENTER,
-                                            controls=[
-                                                ft.Text(
-                                                    "47",
-                                                    font_family="JosefinBold",
-                                                    size=26,
-                                                ),
-                                                ft.Text(
-                                                    "Em Produção",
-                                                    size=16,
-                                                    color="#B7B89F",
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
-                            ),
-                            ft.Container(
-                                width=300,
-                                height=100,
-                                bgcolor="white",
-                                border_radius=15,
-                                padding=ft.padding.all(10),
-                                border=ft.border.all(1, "#CBCBCB"),
-                                content=ft.Row(
-                                    alignment=ft.MainAxisAlignment.START,
-                                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                                    spacing=15,
-                                    controls=[
-                                        ft.Container(
-                                            ft.Image(
-                                                src="caminhao.svg",
-                                                width=50,
-                                                height=50,
-                                            ),
-                                            margin=ft.margin.only(left=20),
-                                        ),
-                                        ft.Column(
-                                            spacing=-10,
-                                            alignment=ft.MainAxisAlignment.CENTER,
-                                            controls=[
-                                                ft.Text(
-                                                    "47",
-                                                    font_family="JosefinBold",
-                                                    size=26,
-                                                ),
-                                                ft.Text(
-                                                    "Em Entrega",
-                                                    size=16,
-                                                    color="#B7B89F",
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
-                            ),
-                        ],
-                    ),
-                    ft.Text(
-                        "Pedidos",
-                        font_family="JosefinBold",
-                        size=22,
-                    ),
+                    ft.Container(height=10)
                 ],
             ),
         )
-        return menu_superior
 
     def _estoque_(self):
         colunas_config = [
             {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int"},
-            {"nome": "Produto", "campo": "nome", "largura": 200, "tipo": "text"},
-            {"nome": "Preço", "campo": "preco", "largura": 150, "tipo": "float"},
-            {"nome": "Estoque", "campo": "estoque", "largura": 150, "tipo": "int"},
+            {"nome": "Produto", "campo": "nome", "largura": 300, "tipo": "text"},
+            {"nome": "Preço", "campo": "preco", "largura": 200, "tipo": "float"},
+            {"nome": "Estoque", "campo": "estoque", "largura": 250, "tipo": "int"},
         ]
 
         def validar_produto(vals):
