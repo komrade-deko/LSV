@@ -4,7 +4,6 @@ from src.modules.utils import *
 pedidos_producao = 47
 menu_lateral_style = ft.ButtonStyle(color="black", text_style=ft.TextStyle(font_family="JosefinLight", size=16,weight=ft.FontWeight.BOLD),alignment=ft.alignment.center_left)
 
-
 class AdmWindow:
     def __init__(self):
         self.filtro_clientes = ""
@@ -453,36 +452,78 @@ class AdmWindow:
 
     def _abrir_modal_estoque_(self, page):
         conn, cursor = self.conectar()
+
         produto = ft.TextField(
             label="Produto",
-            on_change=limpar_erro
+            on_change=lambda e: (
+                validar_duplicado_generico(
+                    e,
+                    self.conectar,
+                    "produtos",
+                    "nome"
+                ),
+                limpar_erro(e)
+            )
         )
 
         preco = ft.TextField(
             label="Preço Unitário",
             prefix_text="R$",
-            on_change=lambda e:(formatar_valor(e), limpar_erro(e))
+            on_change=lambda e: (
+                formatar_valor(e),
+                limpar_erro(e)
+            )
         )
 
         estoque = ft.TextField(
             label="Estoque",
-            on_change=lambda e: (apenas_numeros(e), limpar_erro(e))
+            on_change=lambda e: (
+                apenas_numeros(e),
+                limpar_erro(e)
+            )
         )
 
         def salvar_modal(e):
+            nome = produto.value.strip()
+            preco_valor = preco.value.strip()
+            estoque_valor = estoque.value.strip()
+
             if not validar_campos_obrigatorios(produto, preco, estoque):
                 return
-            cursor.execute("""
-                            INSERT INTO produtos (nome, preco, estoque)
-                            VALUES (?, ?, ?)
-                        """, (
-                produto.value.strip(),
-                preco.value.strip(),
-                estoque.value.strip()
-            ))
 
-            conn.commit()
-            conn.close()
+            conn2, cursor2 = self.conectar()
+
+            cursor2.execute(
+                "SELECT id FROM produtos WHERE nome = ?",
+                (nome,)
+            )
+            existe = cursor2.fetchone()
+
+            if existe:
+                produto.error_text = f"Produto já existe"
+                produto.update()
+                conn2.close()
+                return
+
+            conn2.close()
+
+            if produto.error_text:
+                return
+
+            try:
+                cursor.execute(
+                    "INSERT INTO produtos (nome, preco, estoque) VALUES (?, ?, ?)",
+                    (nome, preco_valor, estoque_valor)
+                )
+                conn.commit()
+
+            except Exception:
+                produto.error_text = "Erro ao salvar"
+                produto.update()
+                return
+
+            finally:
+                conn.close()
 
             fechar_modal(modal, page)
             self._atualizar_tabela_estoque()
@@ -501,16 +542,8 @@ class AdmWindow:
                 width=340
             ),
             actions=[
-                ft.TextButton(
-                    "Salvar",
-                    on_click=salvar_modal,
-                    style=salvar_style,
-                ),
-                ft.TextButton(
-                    "Cancelar",
-                    on_click=lambda e: fechar_modal(modal, page),
-                    style=cancelar_style,
-                )
+                ft.TextButton("Salvar", on_click=salvar_modal, style=salvar_style),
+                ft.TextButton("Cancelar", on_click=lambda e: fechar_modal(modal, page), style=cancelar_style)
             ],
             shape=ft.RoundedRectangleBorder(radius=7)
         )
@@ -521,7 +554,6 @@ class AdmWindow:
 
     def _pedidos_(self):
         colunas_config = [
-
             {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str"},
             {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int"},
             {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float"},
@@ -677,9 +709,12 @@ class AdmWindow:
     def _estoque_(self):
         colunas_config = [
             {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int"},
-            {"nome": "Produto", "campo": "nome", "largura": 300, "tipo": "text"},
-            {"nome": "Preço", "campo": "preco", "largura": 200, "tipo": "float","editable": True, "onchange": formatar_valor},
-            {"nome": "Estoque", "campo": "estoque", "largura": 250, "tipo": "int","editable": True,"on_change": apenas_numeros},
+            {"nome": "Produto", "campo": "nome", "largura": 300, "tipo": "text", "editable": True,
+             "on_change": validar_duplicado_generico},
+            {"nome": "Preço", "campo": "preco", "largura": 200, "tipo": "float", "editable": True,
+             "on_change": formatar_valor},
+            {"nome": "Estoque", "campo": "estoque", "largura": 250, "tipo": "int", "editable": True,
+             "on_change": apenas_numeros},
         ]
 
         def validar_produto(vals):
@@ -687,7 +722,7 @@ class AdmWindow:
             preco = vals[1].replace(",", ".").strip()
             estoque = vals[2].strip()
 
-            if not nome:
+            if not nome or not preco or not estoque:
                 return False
 
             try:
@@ -742,12 +777,10 @@ class AdmWindow:
              "on_change": lambda e, conectar_fn=self.conectar, tabela="clientes", campo="email", item_id=None:
              validar_duplicado_generico(e, conectar_fn, tabela, campo, item_id)
              },
-
             {"nome": "Telefone", "campo": "telefone", "largura": 150, "tipo": "text", "editable": True,
              "on_change": lambda e, conectar_fn=self.conectar, tabela="clientes", campo="telefone", item_id=None:
              (formatar_telefone(e), validar_duplicado_generico(e, conectar_fn, tabela, campo, item_id))
              },
-
             {"nome": "Criado em", "campo": "criado_em", "largura": 150, "tipo": "date", "editable": False},
         ]
 

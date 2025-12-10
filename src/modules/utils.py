@@ -338,7 +338,8 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
 
         return linhas
 
-    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha,funcao_validar, funcao_extra):
+    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha, funcao_validar,
+                      funcao_extra):
 
         colunas_editaveis = []
         nomes_editaveis = []
@@ -348,22 +349,17 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
         for i, col in enumerate(colunas_config):
             if i == 0:
                 continue
+
             if col.get("editable", True):
 
                 colunas_editaveis.append(col["campo"])
                 nomes_editaveis.append(col["nome"])
                 valores_editaveis.append(linha[i])
 
-                handler = None
+                handler = col.get("on_change")
 
-                if "on_change" in col:
-                    handler = col.get("on_change")
-
-                if isinstance(handler, str):
-                    handler = globals().get(handler)
-
-                if handler:
-                    def wrap_handler(e, h=handler, campo=col["campo"]):
+                if handler == validar_duplicado_generico:
+                    def wrap_dup(e, h=handler, campo=col["campo"]):
                         h(
                             e,
                             instancia.conectar,
@@ -372,7 +368,14 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
                             item_id
                         )
 
+                    on_change_handlers.append(wrap_dup)
+
+                elif handler:
+                    def wrap_handler(e, h=handler):
+                        h(e)
+
                     on_change_handlers.append(wrap_handler)
+
                 else:
                     on_change_handlers.append(None)
 
