@@ -368,7 +368,10 @@ class AdmWindow:
         telefone_cliente = ft.TextField(
             label="Telefone",
             hint_text="(XX) XXXXXXXXX",
-            on_change=formatar_telefone
+            on_change=lambda e: (
+                formatar_telefone(e),
+                limpar_erro(e)
+            )
         )
 
         def salvar_modal(e):
@@ -383,7 +386,7 @@ class AdmWindow:
             nome_existe = cursor.fetchone()[0] > 0
 
             if nome_existe:
-                nome_cliente.error_text = "⚠️ Este cliente já existe"
+                nome_cliente.error_text = "Cliente já existe"
                 nome_cliente.update()
                 return
 
@@ -392,9 +395,17 @@ class AdmWindow:
                 email_existe = cursor.fetchone()[0] > 0
 
                 if email_existe:
-                    email_cliente.error_text = "⚠️ Este email já está cadastrado"
+                    email_cliente.error_text = "Email já existe"
                     email_cliente.update()
                     return
+
+            cursor.execute("SELECT COUNT(*) FROM clientes WHERE telefone = ?", (tel,))
+            tel_existe = cursor.fetchone()[0] > 0
+
+            if tel_existe:
+                telefone_cliente.error_text = "Telefone já existe"
+                telefone_cliente.update()
+                return
 
             try:
                 cursor.execute("""
@@ -404,8 +415,8 @@ class AdmWindow:
 
                 conn.commit()
 
-            except Exception as err:
-                email_cliente.error_text = "⚠️ Erro ao salvar: email duplicado"
+            except Exception:
+                email_cliente.error_text = "Erro ao salvar"
                 email_cliente.update()
                 return
 
@@ -510,10 +521,11 @@ class AdmWindow:
 
     def _pedidos_(self):
         colunas_config = [
-            {"nome": "Cliente ID", "campo": "cliente_id", "largura": 120, "tipo": "int"},
+
             {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str"},
             {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int"},
             {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float"},
+            {"nome": "Status", "campo": "status", "largura": 200, "tipo": "str"},
         ]
 
         def validar_pedido(vals):
@@ -722,10 +734,20 @@ class AdmWindow:
     def _clientes_(self):
         colunas_config = [
             {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int", "editable": False},
-            {"nome": "Nome", "campo": "nome", "largura": 200, "tipo": "text", "editable": True},
-            {"nome": "Email", "campo": "email", "largura": 250, "tipo": "text", "editable": True},
+            {"nome": "Nome", "campo": "nome", "largura": 200, "tipo": "text", "editable": True,
+             "on_change": lambda e, conectar_fn=self.conectar, tabela="clientes", campo="nome", item_id=None:
+             validar_duplicado_generico(e, conectar_fn, tabela, campo, item_id)
+             },
+            {"nome": "Email", "campo": "email", "largura": 250, "tipo": "text", "editable": True,
+             "on_change": lambda e, conectar_fn=self.conectar, tabela="clientes", campo="email", item_id=None:
+             validar_duplicado_generico(e, conectar_fn, tabela, campo, item_id)
+             },
+
             {"nome": "Telefone", "campo": "telefone", "largura": 150, "tipo": "text", "editable": True,
-             "on_change": formatar_telefone},
+             "on_change": lambda e, conectar_fn=self.conectar, tabela="clientes", campo="telefone", item_id=None:
+             (formatar_telefone(e), validar_duplicado_generico(e, conectar_fn, tabela, campo, item_id))
+             },
+
             {"nome": "Criado em", "campo": "criado_em", "largura": 150, "tipo": "date", "editable": False},
         ]
 

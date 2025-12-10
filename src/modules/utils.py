@@ -58,10 +58,42 @@ def formatar_data(e):
                        ("/" + v[4:8] if len(v) >= 5 else ""))
     e.control.update()
 
+def validar_duplicado_generico(e, conectar_fn, tabela, coluna, item_id=None):
+    valor = e.control.value.strip() if e.control.value else ""
+
+    if not valor:
+        e.control.error_text = None
+        e.control.update()
+        return
+
+    conn, cursor = conectar_fn()
+
+    if item_id:
+        cursor.execute(
+            f"SELECT COUNT(*) FROM {tabela} WHERE {coluna} = ? AND id != ?",
+            (valor, item_id)
+        )
+    else:
+        cursor.execute(
+            f"SELECT COUNT(*) FROM {tabela} WHERE {coluna} = ?",
+            (valor,)
+        )
+
+    existe = cursor.fetchone()[0] > 0
+    conn.close()
+
+    nome_label = e.control.label if hasattr(e.control, "label") else coluna.capitalize()
+
+    if existe:
+        e.control.error_text = f"{nome_label} já existe"
+    else:
+        e.control.error_text = None
+
+    e.control.update()
+
 def fechar_modal(modal, page):
     modal.open = False
     page.update()
-
 
 def formatar_telefone(e):
     v = ''.join([c for c in e.control.value if c.isdigit()])[:11]
@@ -76,7 +108,6 @@ def formatar_telefone(e):
     e.control.value = v
     e.control.update()
     limpar_erro(e)
-
 
 def validar_campos_obrigatorios(*campos):
     valido = True
@@ -112,7 +143,6 @@ def buscar_generico(conectar_fn, tabela, colunas, coluna_pesquisa, texto):
     conn.close()
     return dados
 
-
 def salvar_generico(conectar_fn, tabela, colunas, id_coluna, item_id, valores):
     conn, cursor = conectar_fn()
 
@@ -123,7 +153,6 @@ def salvar_generico(conectar_fn, tabela, colunas, id_coluna, item_id, valores):
     conn.commit()
     conn.close()
 
-
 def excluir_generico(conectar_fn, tabela, id_coluna, item_id):
     conn, cursor = conectar_fn()
     sql = f"DELETE FROM {tabela} WHERE {id_coluna} = ?"
@@ -131,46 +160,43 @@ def excluir_generico(conectar_fn, tabela, id_coluna, item_id):
     conn.commit()
     conn.close()
 
-def editar_generico(
-        page,
-        titulo,
-        colunas,
-        valores,
-        validar_fn,
-        salvar_sql_fn,
-        atualizar_callback,
-        on_change_handlers=None
-):
+def editar_generico(page,titulo,colunas,valores,validar_fn,salvar_sql_fn,atualizar_callback,on_change_handlers=None):
     campos = []
     for i in range(len(colunas)):
         label = colunas[i]
         value = str(valores[i])
 
-        on_change_handler = None
+        handler = None
         if on_change_handlers and i < len(on_change_handlers):
-            on_change_handler = on_change_handlers[i]
+            handler = on_change_handlers[i]
 
         read_only = False
-
         lbl_lower = label.lower()
-        if not on_change_handler:
+
+        if not handler:
             if "telefone" in lbl_lower:
-                on_change_handler = formatar_telefone
+                handler = lambda e: formatar_telefone(e)
             elif "data" in lbl_lower:
-                on_change_handler = formatar_data
+                handler = lambda e: formatar_data(e)
 
         if lbl_lower in ("criado em", "criado_em", "data_pedido"):
             read_only = True
 
-        if on_change_handler:
-            campo = ft.TextField(label=label, value=value, on_change=on_change_handler, read_only=read_only)
-        else:
-            campo = ft.TextField(label=label, value=value, read_only=read_only)
+        campo = ft.TextField(
+            label=label,
+            value=value,
+            on_change=handler,
+            read_only=read_only
+        )
 
         campos.append(campo)
 
     def salvar(e):
         novos_valores = [c.value.strip() for c in campos]
+
+        for c in campos:
+            if c.error_text:
+                return
 
         if not validar_fn(novos_valores):
             return
@@ -203,16 +229,7 @@ def editar_generico(
     modal.open = True
     page.update()
 
-def confirmar_excluir_generico(
-        page,
-        titulo,
-        mensagem,
-        conectar_fn,
-        tabela,
-        id_coluna,
-        item_id,
-        atualizar_callback
-):
+def confirmar_excluir_generico(page,titulo,mensagem,conectar_fn,tabela,id_coluna,item_id,atualizar_callback):
     def executar_exclusao(e, dialog):
         excluir_generico(conectar_fn, tabela, id_coluna, item_id)
         dialog.open = False
@@ -251,25 +268,13 @@ def confirmar_excluir_generico(
     dialog.open = True
     page.update()
 
-
 def filtrar_generico(instancia, campo, atualizar_callback):
     def _filter(e):
         setattr(instancia, campo, e.control.value.lower())
         atualizar_callback()
     return _filter
 
-def criar_tabela_generica(
-        instancia,
-        titulo_tela,
-        nome_tabela,
-        colunas_config,
-        colunas_pesquisa,
-        campo_filtro_instancia,
-        funcao_atualizar_nome,
-        funcao_abrir_modal,
-        funcao_validar_editar=None,
-        funcao_extra_editar=None
-):
+def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colunas_pesquisa,campo_filtro_instancia,funcao_atualizar_nome,funcao_abrir_modal,funcao_validar_editar=None,funcao_extra_editar=None):
 
     campos_banco = [col["campo"] for col in colunas_config]
     nomes_colunas = [col["nome"] for col in colunas_config]
@@ -333,8 +338,8 @@ def criar_tabela_generica(
 
         return linhas
 
-    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha, funcao_validar,
-                      funcao_extra):
+    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha,funcao_validar, funcao_extra):
+
         colunas_editaveis = []
         nomes_editaveis = []
         valores_editaveis = []
@@ -344,20 +349,32 @@ def criar_tabela_generica(
             if i == 0:
                 continue
             if col.get("editable", True):
+
                 colunas_editaveis.append(col["campo"])
                 nomes_editaveis.append(col["nome"])
                 valores_editaveis.append(linha[i])
 
                 handler = None
+
                 if "on_change" in col:
                     handler = col.get("on_change")
-                elif "onchange" in col:
-                    handler = col.get("onchange")
 
                 if isinstance(handler, str):
                     handler = globals().get(handler)
 
-                on_change_handlers.append(handler)
+                if handler:
+                    def wrap_handler(e, h=handler, campo=col["campo"]):
+                        h(
+                            e,
+                            instancia.conectar,
+                            nome_tabela,
+                            campo,
+                            item_id
+                        )
+
+                    on_change_handlers.append(wrap_handler)
+                else:
+                    on_change_handlers.append(None)
 
         def validar_padrao(vals):
             return True
@@ -376,15 +393,14 @@ def criar_tabela_generica(
             if funcao_extra:
                 funcao_extra()
 
-        # passa também os on_change_handlers para o editor genérico
         editar_generico(
             page=instancia.page,
-            titulo=f"Editar {titulo_tela[:-1]}",
+            titulo=f"Editar {nome_tabela.capitalize()}",
             colunas=nomes_editaveis,
             valores=valores_editaveis,
             validar_fn=validar_fn,
             salvar_sql_fn=salvar_fn,
-            atualizar_callback=lambda: getattr(instancia, funcao_atualizar_nome)(),
+            atualizar_callback=getattr(instancia, funcao_atualizar_nome),
             on_change_handlers=on_change_handlers
         )
 
