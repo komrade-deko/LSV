@@ -314,13 +314,11 @@ class AdmWindow:
             conn_check.close()
 
             if not row:
-                # cliente não encontrado -> perguntar se deseja criar
                 abrir_confirmacao_criar_cliente()
                 return
 
             cliente_id = row[0]
 
-            # por enquanto apenas printar (ou aqui você pode inserir lógica para criar pedido/itens)
             print("Cliente:", nome_cliente, " (id:", cliente_id, ")")
             print("Data de Entrega:", data_field.value)
             print("Pedidos:", pedidos)
@@ -553,11 +551,12 @@ class AdmWindow:
         page.update()
 
     def _pedidos_(self):
+        #subistituir o editar por "detalhes do pedido"
         colunas_config = [
             {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str"},
             {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int"},
             {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float"},
-            {"nome": "Status", "campo": "status", "largura": 200, "tipo": "str"},
+            {"nome": "Status", "campo": "status", "largura": 200, "tipo": "str", "editable": False},
         ]
 
         def validar_pedido(vals):
