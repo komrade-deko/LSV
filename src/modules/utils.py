@@ -315,7 +315,8 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
                             nomes_colunas,
                             linha,
                             funcao_validar_editar,
-                            funcao_extra_editar
+                            funcao_extra_editar,
+                            colunas_config
                         )
                     ),
                     ft.PopupMenuItem(
@@ -338,23 +339,21 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
 
         return linhas
 
-    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha, funcao_validar,
-                      funcao_extra):
-
+    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha, funcao_validar, funcao_extra,
+                      colunas_config):
         colunas_editaveis = []
         nomes_editaveis = []
         valores_editaveis = []
         on_change_handlers = []
 
         for i, col in enumerate(colunas_config):
-            if i == 0:
-                continue
-
-            if col.get("editable", True):
-
+            if col.get("editable", True):  # Apenas adiciona colunas editáveis
                 colunas_editaveis.append(col["campo"])
                 nomes_editaveis.append(col["nome"])
-                valores_editaveis.append(linha[i])
+
+                # Garante que pegamos o valor correto da linha
+                valor = linha[i] if i < len(linha) else ""
+                valores_editaveis.append(valor)
 
                 handler = col.get("on_change")
 
@@ -384,28 +383,79 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
 
         validar_fn = funcao_validar if funcao_validar else validar_padrao
 
-        def salvar_fn(valores):
+        # Criar os campos editáveis
+        campos = []
+        for i in range(len(colunas_editaveis)):
+            label = nomes_editaveis[i]
+            value = str(valores_editaveis[i]) if valores_editaveis[i] is not None else ""
+
+            handler = None
+            if i < len(on_change_handlers) and on_change_handlers[i]:
+                handler = on_change_handlers[i]
+
+            # Cria o campo com o handler correto
+            campo = ft.TextField(
+                label=label,
+                value=value,
+                on_change=handler
+            )
+
+            campos.append(campo)
+
+        def salvar(e):
+            novos_valores = [c.value.strip() for c in campos]
+
+            # Verifica se há erros nos campos
+            for c in campos:
+                if c.error_text:
+                    return
+
+            # Valida os valores
+            if not validar_fn(novos_valores):
+                return
+
+            # Salva no banco
             salvar_generico(
                 conectar_fn=instancia.conectar,
                 tabela=nome_tabela,
                 colunas=colunas_editaveis,
                 id_coluna=campos_banco[0],
                 item_id=item_id,
-                valores=valores
+                valores=novos_valores
             )
+
             if funcao_extra:
                 funcao_extra()
 
-        editar_generico(
-            page=instancia.page,
-            titulo=f"Editar {nome_tabela.capitalize()}",
-            colunas=nomes_editaveis,
-            valores=valores_editaveis,
-            validar_fn=validar_fn,
-            salvar_sql_fn=salvar_fn,
-            atualizar_callback=getattr(instancia, funcao_atualizar_nome),
-            on_change_handlers=on_change_handlers
+            # Fecha o modal e atualiza
+            modal.open = False
+            instancia.page.update()
+            getattr(instancia, funcao_atualizar_nome)()
+
+        # Cria o modal DIRETAMENTE aqui, sem chamar editar_generico
+        modal = ft.AlertDialog(
+            modal=True,
+            content=ft.Column(
+                controls=[
+                    ft.Text(f"Editar {nome_tabela.capitalize()}", size=20, font_family="JosefinBold"),
+                    *campos
+                ],
+                spacing=10,
+                tight=True,
+                width=340
+            ),
+            actions=[
+                ft.TextButton("Salvar", style=salvar_style, on_click=salvar),
+                ft.TextButton("Cancelar",
+                              style=cancelar_style,
+                              on_click=lambda e: (setattr(modal, 'open', False), instancia.page.update()))
+            ],
+            shape=ft.RoundedRectangleBorder(radius=7)
         )
+
+        instancia.page.overlay.append(modal)
+        modal.open = True
+        instancia.page.update()
 
     def _confirmar_excluir(instancia, nome_tabela, id_coluna, item_id, linha, nomes_colunas):
         nome_item = linha[1] if len(linha) > 1 else str(item_id)
@@ -451,7 +501,6 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
         expand=True,
         controls=[ft.Container(content=tabela_body, expand=True)]
     )
-
     campo_pesquisa = ft.TextField(
         label="Pesquisar",
         prefix_icon=ft.Icons.SEARCH,

@@ -551,11 +551,12 @@ class AdmWindow:
         page.update()
 
     def _pedidos_(self):
-        #subistituir o editar por "detalhes do pedido"
         colunas_config = [
-            {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str"},
-            {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int"},
-            {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float"},
+            {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str", "editable": True,
+             "on_change": formatar_data},
+            {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int", "editable": False},
+            {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float", "editable": True,
+             "on_change": formatar_valor},
             {"nome": "Status", "campo": "status", "largura": 200, "tipo": "str", "editable": False},
         ]
 
