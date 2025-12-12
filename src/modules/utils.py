@@ -109,6 +109,32 @@ def formatar_telefone(e):
     e.control.update()
     limpar_erro(e)
 
+
+def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
+    modal = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(f"Detalhes do Pedido #{item_id}", font_family="JosefinBold", size=20),
+        content=ft.Column(
+            controls=[
+                ft.Text(f"Visualizando detalhes do pedido ID: {item_id}"),
+                ft.Text("Aqui serão mostrados os itens do pedido..."),
+            ],
+            spacing=10,
+            tight=True,
+            width=400
+        ),
+        actions=[
+            ft.TextButton("Fechar",
+                          style=cancelar_style,
+                          on_click=lambda e: (setattr(modal, 'open', False), instancia.page.update()))
+        ],
+        shape=ft.RoundedRectangleBorder(radius=7)
+    )
+
+    instancia.page.overlay.append(modal)
+    modal.open = True
+    instancia.page.update()
+
 def validar_campos_obrigatorios(*campos):
     valido = True
     for campo in campos:
@@ -305,6 +331,16 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
 
             menu = ft.PopupMenuButton(
                 items=[
+                    ft.PopupMenuItem(  # NOVA OPÇÃO - Detalhes
+                        text="Detalhes",
+                        on_click=lambda e, item_id=item_id, linha=linha: _abrir_detalhes(
+                            instancia,
+                            nome_tabela,
+                            item_id,
+                            linha,
+                            nomes_colunas
+                        )
+                    ),
                     ft.PopupMenuItem(
                         text="Editar",
                         on_click=lambda e, item_id=item_id, linha=linha: _abrir_editar(

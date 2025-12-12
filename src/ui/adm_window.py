@@ -552,11 +552,9 @@ class AdmWindow:
 
     def _pedidos_(self):
         colunas_config = [
-            {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str", "editable": True,
-             "on_change": formatar_data},
+            {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str", "editable": True,"on_change": formatar_data},
             {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int", "editable": False},
-            {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float", "editable": True,
-             "on_change": formatar_valor},
+            {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float", "editable": True,"on_change": formatar_valor},
             {"nome": "Status", "campo": "status", "largura": 200, "tipo": "str", "editable": False},
         ]
 
@@ -717,13 +715,10 @@ class AdmWindow:
 
     def _estoque_(self):
         colunas_config = [
-            {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int"},
-            {"nome": "Produto", "campo": "nome", "largura": 300, "tipo": "text", "editable": True,
-             "on_change": validar_duplicado_generico},
-            {"nome": "Preço", "campo": "preco", "largura": 200, "tipo": "float", "editable": True,
-             "on_change": formatar_valor},
-            {"nome": "Estoque", "campo": "estoque", "largura": 250, "tipo": "int", "editable": True,
-             "on_change": apenas_numeros},
+            {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int", "editable": False},
+            {"nome": "Produto", "campo": "nome", "largura": 300, "tipo": "text", "editable": True,"on_change": validar_duplicado_generico},
+            {"nome": "Preço", "campo": "preco", "largura": 200, "tipo": "float", "editable": True,"on_change": formatar_valor},
+            {"nome": "Estoque", "campo": "estoque", "largura": 250, "tipo": "int", "editable": True,"on_change": apenas_numeros},
         ]
 
         def validar_produto(vals):
