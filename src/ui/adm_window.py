@@ -561,15 +561,24 @@ class AdmWindow:
         ]
 
         def validar_pedido(vals):
+
             try:
-                int(vals[0])
-                int(vals[1])
-                if not vals[2] or not vals[3]:
+                data = vals[0].strip() if len(vals) > 0 else ""
+                if not data or len(data) != 10:
                     return False
-                int(vals[4])
-                float(vals[5])
+
+                if len(vals) > 1:
+                    valor_str = vals[1].replace("R$", "").replace(".", "").replace(",", ".").strip()
+                    if not valor_str:
+                        return False
+
+                    valor_float = float(valor_str)
+                    if valor_float <= 0:
+                        return False
+
                 return True
-            except:
+
+            except (ValueError, IndexError, AttributeError):
                 return False
 
         if not hasattr(self, 'filtro_pedidos'):
