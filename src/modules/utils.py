@@ -1,5 +1,6 @@
 import flet as ft
 import sqlite3
+# #E53935 Background
 
 salvar_style = ft.ButtonStyle(padding=20, alignment=ft.alignment.center_left, color="#EEEEEE", bgcolor="#273273",
                               shape=ft.RoundedRectangleBorder(radius=7),
@@ -59,24 +60,158 @@ def formatar_data(e):
     e.control.update()
 
 def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
-    if nome_tabela in ["pedidos", "pedidos_com_clientes"] and len(linha) > 1:
-        numero_pedido = linha[2]
+    numero_pedido = item_id
+    cliente_nome = "N/A"
+    data_entrega = "N/A"
+    valor = "N/A"
+    status = "N/A"
+
+    if nome_tabela in ["pedidos", "pedidos_com_clientes"]:
+        if len(linha) > 0:
+            numero_pedido = linha[0] if len(linha) > 0 else item_id
+            cliente_nome = linha[1] if len(linha) > 1 else "N/A"
+            data_entrega = linha[2] if len(linha) > 2 else "N/A"
+            valor = linha[3] if len(linha) > 3 else "N/A"
+            status = linha[4] if len(linha) > 4 else "N/A"
+
         titulo = f"Detalhes do Pedido #{numero_pedido}"
+
+        conn, cursor = instancia.conectar()
+        cursor.execute("""
+            SELECT 
+                produto_nome,
+                quantidade,
+                preco_unitario,
+                total_item
+            FROM vw_itens_pedido_detalhados
+            WHERE pedido_id = ?
+            ORDER BY id
+        """, (item_id,))
+
+        itens = cursor.fetchall()
+        conn.close()
+
     else:
         titulo = f"Detalhes do {nome_tabela.capitalize()} #{item_id}"
+        itens = []
+
+    tabela_info = ft.DataTable(
+        columns=[
+            ft.DataColumn(ft.Container(content=ft.Text("Número Pedido"), width=190)),
+            ft.DataColumn(ft.Container(content=ft.Text("Cliente"), width=150)),
+            ft.DataColumn(ft.Container(content=ft.Text("Data Entrega"), width=100)),
+            ft.DataColumn(ft.Container(content=ft.Text("Valor"), width=150)),
+            ft.DataColumn(ft.Container(content=ft.Text("Status"), width=200)),
+        ],
+        rows=[
+            ft.DataRow(
+                cells=[
+                    ft.DataCell(ft.Container(ft.Text(str(numero_pedido)), width=190)),
+                    ft.DataCell(ft.Container(ft.Text(str(cliente_nome)), width=150)),
+                    ft.DataCell(ft.Container(ft.Text(str(data_entrega)), width=100)),
+                    ft.DataCell(ft.Container(ft.Text(f"R$ {str(valor)}"), width=150)),
+                    ft.DataCell(ft.Container(ft.Text(str(status)), width=200)),
+                ]
+            )
+        ],
+        heading_row_color="#E0E0E0",
+        border=ft.border.only(bottom=ft.BorderSide(1, "#CCCCCC")),
+        column_spacing=20,
+    )
+
+    container_info = ft.Container(
+        bgcolor="white",
+        padding=10,
+        border_radius=10,
+        border=ft.border.all(1, "#D2D2D2"),
+        content=ft.Column(
+            spacing=0,
+            controls=[
+                ft.Container(
+                    content=ft.Text("Informações do Pedido", font_family="JosefinBold", size=16, color="#273273"),
+                    margin=ft.margin.only(bottom=10)
+                ),
+                tabela_info
+            ]
+        )
+    )
+
+    rows_itens = []
+    for item in itens:
+        produto_nome = item[0]
+        quantidade = item[1]
+        preco_unitario = item[2]
+        total_item = item[3]
+
+        rows_itens.append(
+            ft.DataRow(
+                cells=[
+                    ft.DataCell(ft.Container(ft.Text(produto_nome), width=400)),
+                    ft.DataCell(ft.Container(ft.Text(str(quantidade)), width=200)),
+                ]
+            )
+        )
+
+    if not rows_itens:
+        rows_itens.append(
+            ft.DataRow(
+                cells=[
+                    ft.DataCell(ft.Container(ft.Text("Nenhum item encontrado"), width=400)),
+                    ft.DataCell(ft.Container(ft.Text(""), width=200)),
+                ]
+            )
+        )
+
+    tabela_itens = ft.DataTable(
+        columns=[
+            ft.DataColumn(ft.Container(content=ft.Text("Produto"), width=400)),
+            ft.DataColumn(ft.Container(content=ft.Text("Quantidade"), width=200)),
+        ],
+        rows=rows_itens,
+        heading_row_color="#E0E0E0",
+        border=ft.border.only(bottom=ft.BorderSide(1, "#CCCCCC")),
+        column_spacing=20,
+    )
+
+    container_itens = ft.Container(
+        bgcolor="white",
+        padding=10,
+        border_radius=10,
+        border=ft.border.all(1, "#D2D2D2"),
+        height=250,
+        content=ft.Column(
+            spacing=0,
+            controls=[
+                ft.Container(
+                    content=ft.Text("Itens do Pedido", font_family="JosefinBold", size=16, color="#273273"),
+                    margin=ft.margin.only(bottom=10)
+                ),
+                ft.Container(
+                    expand=True,
+                    content=ft.Column(
+                        controls=[tabela_itens],
+                        scroll=ft.ScrollMode.AUTO
+                    )
+                )
+            ]
+        )
+    )
+
+    conteudo = ft.Column(
+        controls=[
+            container_info,
+            ft.Container(height=20),
+            container_itens
+        ],
+        spacing=0,
+        width=900,
+    )
 
     modal = ft.AlertDialog(
+        bgcolor="white",
         modal=True,
-        title=ft.Text(titulo, font_family="JosefinBold", size=20),
-        content=ft.Column(
-            controls=[
-                # ft.Text(f"Visualizando detalhes do pedido ID: {item_id}"),
-                ft.Text("Aqui serão mostrados os itens do pedido..."),
-            ],
-            spacing=10,
-            tight=True,
-            width=400
-        ),
+        title=ft.Text(titulo, font_family="JosefinBold", size=20, color="#273273"),
+        content=conteudo,
         actions=[
             ft.TextButton("Fechar",
                           style=cancelar_style,
@@ -305,8 +440,7 @@ def filtrar_generico(instancia, campo, atualizar_callback):
         atualizar_callback()
     return _filter
 
-def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, colunas_pesquisa, campo_filtro_instancia,
-                          funcao_atualizar_nome, funcao_abrir_modal, funcao_validar_editar=None, funcao_extra_editar=None):
+def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, colunas_pesquisa, campo_filtro_instancia,funcao_atualizar_nome, funcao_abrir_modal, funcao_validar_editar=None, funcao_extra_editar=None):
     campos_banco = [col["campo"] for col in colunas_config]
     nomes_colunas = [col["nome"] for col in colunas_config]
     larguras_colunas = [col["largura"] for col in colunas_config]
@@ -383,8 +517,7 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
 
         return linhas
 
-    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha,
-                      funcao_validar, funcao_extra, colunas_config):
+    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha,funcao_validar, funcao_extra, colunas_config):
 
         tabela_update = "pedidos" if nome_tabela == "pedidos_com_clientes" else nome_tabela
         titulo_tabela = "Pedidos" if nome_tabela == "pedidos_com_clientes" else nome_tabela.capitalize()
