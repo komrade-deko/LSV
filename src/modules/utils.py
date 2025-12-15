@@ -59,9 +59,8 @@ def formatar_data(e):
     e.control.update()
 
 def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
-
-    if nome_tabela == "pedidos" and len(linha) > 1:
-        numero_pedido = linha[1]
+    if nome_tabela in ["pedidos", "pedidos_com_clientes"] and len(linha) > 1:
+        numero_pedido = linha[2]
         titulo = f"Detalhes do Pedido #{numero_pedido}"
     else:
         titulo = f"Detalhes do {nome_tabela.capitalize()} #{item_id}"
@@ -306,7 +305,8 @@ def filtrar_generico(instancia, campo, atualizar_callback):
         atualizar_callback()
     return _filter
 
-def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, colunas_pesquisa, campo_filtro_instancia,funcao_atualizar_nome, funcao_abrir_modal, funcao_validar_editar=None,funcao_extra_editar=None):
+def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, colunas_pesquisa, campo_filtro_instancia,
+                          funcao_atualizar_nome, funcao_abrir_modal, funcao_validar_editar=None, funcao_extra_editar=None):
     campos_banco = [col["campo"] for col in colunas_config]
     nomes_colunas = [col["nome"] for col in colunas_config]
     larguras_colunas = [col["largura"] for col in colunas_config]
@@ -332,14 +332,10 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
                         ft.Container(ft.Text(str(valor) if valor is not None else "-"), width=larguras_colunas[i]))
                 )
 
-            if nome_tabela == "pedidos_com_clientes":
-                item_id = linha[0]
-            else:
-                item_id = linha[0]
-
+            item_id = linha[0]
             itens_menu = []
 
-            if nome_tabela == "pedidos":
+            if nome_tabela in ["pedidos", "pedidos_com_clientes"]:
                 itens_menu.append(
                     ft.PopupMenuItem(
                         text="Detalhes",
@@ -382,15 +378,17 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
             ])
 
             menu = ft.PopupMenuButton(items=itens_menu)
-
             cells.append(ft.DataCell(menu))
-
             linhas.append(ft.DataRow(cells=cells))
 
         return linhas
 
-    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha, funcao_validar, funcao_extra,
-                      colunas_config):
+    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha,
+                      funcao_validar, funcao_extra, colunas_config):
+
+        tabela_update = "pedidos" if nome_tabela == "pedidos_com_clientes" else nome_tabela
+        titulo_tabela = "Pedidos" if nome_tabela == "pedidos_com_clientes" else nome_tabela.capitalize()
+
         colunas_editaveis = []
         nomes_editaveis = []
         valores_editaveis = []
@@ -400,30 +398,24 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
             if col.get("editable", True):
                 colunas_editaveis.append(col["campo"])
                 nomes_editaveis.append(col["nome"])
-
-                valor = linha[i] if i < len(linha) else ""
-                valores_editaveis.append(valor)
+                valores_editaveis.append(linha[i] if i < len(linha) else "")
 
                 handler = col.get("on_change")
 
                 if handler == validar_duplicado_generico:
-                    def wrap_dup(e, h=handler, campo=col["campo"]):
-                        h(
+                    def wrap_dup(e, campo=col["campo"]):
+                        validar_duplicado_generico(
                             e,
                             instancia.conectar,
-                            nome_tabela,
+                            tabela_update,
                             campo,
                             item_id
                         )
-
                     on_change_handlers.append(wrap_dup)
-
                 elif handler:
                     def wrap_handler(e, h=handler):
                         h(e)
-
                     on_change_handlers.append(wrap_handler)
-
                 else:
                     on_change_handlers.append(None)
 
@@ -434,19 +426,11 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
 
         campos = []
         for i in range(len(colunas_editaveis)):
-            label = nomes_editaveis[i]
-            value = str(valores_editaveis[i]) if valores_editaveis[i] is not None else ""
-
-            handler = None
-            if i < len(on_change_handlers) and on_change_handlers[i]:
-                handler = on_change_handlers[i]
-
             campo = ft.TextField(
-                label=label,
-                value=value,
-                on_change=handler
+                label=nomes_editaveis[i],
+                value=str(valores_editaveis[i]) if valores_editaveis[i] is not None else "",
+                on_change=on_change_handlers[i] if i < len(on_change_handlers) else None
             )
-
             campos.append(campo)
 
         def salvar(e):
@@ -461,7 +445,7 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
 
             salvar_generico(
                 conectar_fn=instancia.conectar,
-                tabela=nome_tabela,
+                tabela=tabela_update,
                 colunas=colunas_editaveis,
                 id_coluna=campos_banco[0],
                 item_id=item_id,
@@ -470,14 +454,16 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
 
             if funcao_extra:
                 funcao_extra()
+
             modal.open = False
             instancia.page.update()
             getattr(instancia, funcao_atualizar_nome)()
+
         modal = ft.AlertDialog(
             modal=True,
             content=ft.Column(
                 controls=[
-                    ft.Text(f"Editar {nome_tabela.capitalize()}", size=20, font_family="JosefinBold"),
+                    ft.Text(f"Editar {titulo_tabela}", size=20, font_family="JosefinBold"),
                     *campos
                 ],
                 spacing=10,
@@ -498,6 +484,7 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
         instancia.page.update()
 
     def _confirmar_excluir(instancia, nome_tabela, id_coluna, item_id, linha, nomes_colunas):
+        tabela_delete = "pedidos" if nome_tabela == "pedidos_com_clientes" else nome_tabela
         nome_item = linha[1] if len(linha) > 1 else str(item_id)
 
         confirmar_excluir_generico(
@@ -505,7 +492,7 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
             titulo="Confirmar exclusão",
             mensagem=f"Tem certeza que deseja excluir '{nome_item}'?",
             conectar_fn=instancia.conectar,
-            tabela=nome_tabela,
+            tabela=tabela_delete,
             id_coluna=id_coluna,
             item_id=item_id,
             atualizar_callback=lambda: getattr(instancia, funcao_atualizar_nome)()
@@ -520,17 +507,16 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
     )
 
     def atualizar_tabela():
-        novas_linhas = montar_rows()
-        tabela_body.rows = novas_linhas
+        tabela_body.rows = montar_rows()
         tabela_body.update()
 
     setattr(instancia, funcao_atualizar_nome, atualizar_tabela)
 
     tabela_header = ft.DataTable(
         columns=[
-                    ft.DataColumn(ft.Container(content=ft.Text(nome), width=largura))
-                    for nome, largura in zip(nomes_colunas, larguras_colunas)
-                ] + [ft.DataColumn(ft.Container(content=ft.Text("Ações"), width=100))],
+            ft.DataColumn(ft.Container(content=ft.Text(nome), width=largura))
+            for nome, largura in zip(nomes_colunas, larguras_colunas)
+        ] + [ft.DataColumn(ft.Container(content=ft.Text("Ações"), width=100))],
         rows=[],
         heading_row_color="#E0E0E0",
         border=ft.border.only(bottom=ft.BorderSide(1, "#CCCCCC")),
@@ -541,6 +527,7 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
         expand=True,
         controls=[ft.Container(content=tabela_body, expand=True)]
     )
+
     campo_pesquisa = ft.TextField(
         label="Pesquisar",
         prefix_icon=ft.Icons.SEARCH,

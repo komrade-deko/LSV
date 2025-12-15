@@ -552,15 +552,14 @@ class AdmWindow:
 
     def _pedidos_(self):
         colunas_config = [
-            {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str", "editable": True,"on_change": formatar_data},
-            {"nome": "Cliente", "campo": "cliente_nome", "largura": 200, "tipo": "str", "editable": False},
-            {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int", "editable": False},
-            {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float", "editable": True,"on_change": formatar_valor},
+            {"nome": "Data Entrega", "campo": "data_entrega", "largura": 100, "tipo": "str", "editable": True,"on_change": formatar_data},
+            {"nome": "Cliente", "campo": "cliente_nome", "largura": 150, "tipo": "str", "editable": False},
+            {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 190, "tipo": "int", "editable": False},
+            {"nome": "Valor", "campo": "valor", "largura": 150, "tipo": "float", "editable": True,"on_change": formatar_valor},
             {"nome": "Status", "campo": "status", "largura": 200, "tipo": "str", "editable": False},
         ]
 
         def validar_pedido(vals):
-
             try:
                 data = vals[0].strip() if len(vals) > 0 else ""
                 if not data or len(data) != 10:
