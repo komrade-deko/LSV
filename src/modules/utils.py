@@ -300,8 +300,10 @@ def filtrar_generico(instancia, campo, atualizar_callback):
         atualizar_callback()
     return _filter
 
-def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colunas_pesquisa,campo_filtro_instancia,funcao_atualizar_nome,funcao_abrir_modal,funcao_validar_editar=None,funcao_extra_editar=None):
 
+def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, colunas_pesquisa, campo_filtro_instancia,
+                          funcao_atualizar_nome, funcao_abrir_modal, funcao_validar_editar=None,
+                          funcao_extra_editar=None):
     campos_banco = [col["campo"] for col in colunas_config]
     nomes_colunas = [col["nome"] for col in colunas_config]
     larguras_colunas = [col["largura"] for col in colunas_config]
@@ -329,9 +331,13 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
 
             item_id = linha[0]
 
-            menu = ft.PopupMenuButton(
-                items=[
-                    ft.PopupMenuItem(  # NOVA OPÇÃO - Detalhes
+            # Criar os itens do menu dinamicamente
+            itens_menu = []
+
+            # Adicionar "Detalhes" apenas para a tabela de pedidos
+            if nome_tabela == "pedidos":
+                itens_menu.append(
+                    ft.PopupMenuItem(
                         text="Detalhes",
                         on_click=lambda e, item_id=item_id, linha=linha: _abrir_detalhes(
                             instancia,
@@ -340,34 +346,39 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
                             linha,
                             nomes_colunas
                         )
-                    ),
-                    ft.PopupMenuItem(
-                        text="Editar",
-                        on_click=lambda e, item_id=item_id, linha=linha: _abrir_editar(
-                            instancia,
-                            nome_tabela,
-                            item_id,
-                            campos_banco,
-                            nomes_colunas,
-                            linha,
-                            funcao_validar_editar,
-                            funcao_extra_editar,
-                            colunas_config
-                        )
-                    ),
-                    ft.PopupMenuItem(
-                        text="Apagar",
-                        on_click=lambda e, item_id=item_id, linha=linha: _confirmar_excluir(
-                            instancia,
-                            nome_tabela,
-                            campos_banco[0],
-                            item_id,
-                            linha,
-                            nomes_colunas
-                        )
-                    ),
-                ]
-            )
+                    )
+                )
+
+            # Sempre adicionar Editar e Apagar para todas as tabelas
+            itens_menu.extend([
+                ft.PopupMenuItem(
+                    text="Editar",
+                    on_click=lambda e, item_id=item_id, linha=linha: _abrir_editar(
+                        instancia,
+                        nome_tabela,
+                        item_id,
+                        campos_banco,
+                        nomes_colunas,
+                        linha,
+                        funcao_validar_editar,
+                        funcao_extra_editar,
+                        colunas_config
+                    )
+                ),
+                ft.PopupMenuItem(
+                    text="Apagar",
+                    on_click=lambda e, item_id=item_id, linha=linha: _confirmar_excluir(
+                        instancia,
+                        nome_tabela,
+                        campos_banco[0],
+                        item_id,
+                        linha,
+                        nomes_colunas
+                    )
+                ),
+            ])
+
+            menu = ft.PopupMenuButton(items=itens_menu)
 
             cells.append(ft.DataCell(menu))
 
@@ -483,6 +494,43 @@ def criar_tabela_generica(instancia,titulo_tela,nome_tabela,colunas_config,colun
             actions=[
                 ft.TextButton("Salvar", style=salvar_style, on_click=salvar),
                 ft.TextButton("Cancelar",
+                              style=cancelar_style,
+                              on_click=lambda e: (setattr(modal, 'open', False), instancia.page.update()))
+            ],
+            shape=ft.RoundedRectangleBorder(radius=7)
+        )
+
+        instancia.page.overlay.append(modal)
+        modal.open = True
+        instancia.page.update()
+
+    def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
+        """
+        Função para abrir modal de detalhes do pedido
+        Por enquanto só abre um modal vazio
+        """
+        # Para pedidos, o ID real é o numero_pedido (segunda coluna)
+        if nome_tabela == "pedidos" and len(linha) > 1:
+            numero_pedido = linha[1]  # Segunda coluna = numero_pedido
+            titulo = f"Detalhes do Pedido #{numero_pedido}"
+        else:
+            titulo = f"Detalhes do {nome_tabela.capitalize()} #{item_id}"
+
+        # Criar um modal básico
+        modal = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(titulo, font_family="JosefinBold", size=20),
+            content=ft.Column(
+                controls=[
+                    ft.Text(f"Visualizando detalhes do pedido ID: {item_id}"),
+                    ft.Text("Aqui serão mostrados os itens do pedido..."),
+                ],
+                spacing=10,
+                tight=True,
+                width=400
+            ),
+            actions=[
+                ft.TextButton("Fechar",
                               style=cancelar_style,
                               on_click=lambda e: (setattr(modal, 'open', False), instancia.page.update()))
             ],

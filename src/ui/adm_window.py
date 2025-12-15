@@ -552,8 +552,8 @@ class AdmWindow:
 
     def _pedidos_(self):
         colunas_config = [
-            {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str", "editable": True,"on_change": formatar_data},
             {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int", "editable": False},
+            {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str", "editable": True,"on_change": formatar_data},
             {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float", "editable": True,"on_change": formatar_valor},
             {"nome": "Status", "campo": "status", "largura": 200, "tipo": "str", "editable": False},
         ]
