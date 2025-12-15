@@ -552,8 +552,9 @@ class AdmWindow:
 
     def _pedidos_(self):
         colunas_config = [
-            {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int", "editable": False},
             {"nome": "Data Entrega", "campo": "data_entrega", "largura": 200, "tipo": "str", "editable": True,"on_change": formatar_data},
+            {"nome": "Cliente", "campo": "cliente_nome", "largura": 200, "tipo": "str", "editable": False},
+            {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 200, "tipo": "int", "editable": False},
             {"nome": "Valor", "campo": "valor", "largura": 200, "tipo": "float", "editable": True,"on_change": formatar_valor},
             {"nome": "Status", "campo": "status", "largura": 200, "tipo": "str", "editable": False},
         ]
@@ -585,13 +586,13 @@ class AdmWindow:
         tabela = criar_tabela_generica(
             instancia=self,
             titulo_tela="Pedidos",
-            nome_tabela="pedidos",
+            nome_tabela="pedidos_com_clientes",
             colunas_config=colunas_config,
-            colunas_pesquisa=["cliente_id", "numero_pedido"],
+            colunas_pesquisa=["cliente_nome", "numero_pedido"],
             campo_filtro_instancia="filtro_pedidos",
             funcao_atualizar_nome="_atualizar_tabela_pedidos",
             funcao_abrir_modal=self._abrir_modal_pedido_,
-            funcao_validar_editar=validar_pedido
+            funcao_validar_editar=None
         )
 
         cards_estatisticas = ft.Row(

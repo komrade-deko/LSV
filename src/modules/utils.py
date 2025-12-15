@@ -58,6 +58,38 @@ def formatar_data(e):
                        ("/" + v[4:8] if len(v) >= 5 else ""))
     e.control.update()
 
+def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
+
+    if nome_tabela == "pedidos" and len(linha) > 1:
+        numero_pedido = linha[1]
+        titulo = f"Detalhes do Pedido #{numero_pedido}"
+    else:
+        titulo = f"Detalhes do {nome_tabela.capitalize()} #{item_id}"
+
+    modal = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(titulo, font_family="JosefinBold", size=20),
+        content=ft.Column(
+            controls=[
+                # ft.Text(f"Visualizando detalhes do pedido ID: {item_id}"),
+                ft.Text("Aqui serão mostrados os itens do pedido..."),
+            ],
+            spacing=10,
+            tight=True,
+            width=400
+        ),
+        actions=[
+            ft.TextButton("Fechar",
+                          style=cancelar_style,
+                          on_click=lambda e: (setattr(modal, 'open', False), instancia.page.update()))
+        ],
+        shape=ft.RoundedRectangleBorder(radius=7)
+    )
+
+    instancia.page.overlay.append(modal)
+    modal.open = True
+    instancia.page.update()
+
 def validar_duplicado_generico(e, conectar_fn, tabela, coluna, item_id=None):
     valor = e.control.value.strip() if e.control.value else ""
 
@@ -108,32 +140,6 @@ def formatar_telefone(e):
     e.control.value = v
     e.control.update()
     limpar_erro(e)
-
-
-def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
-    modal = ft.AlertDialog(
-        modal=True,
-        title=ft.Text(f"Detalhes do Pedido #{item_id}", font_family="JosefinBold", size=20),
-        content=ft.Column(
-            controls=[
-                ft.Text(f"Visualizando detalhes do pedido ID: {item_id}"),
-                ft.Text("Aqui serão mostrados os itens do pedido..."),
-            ],
-            spacing=10,
-            tight=True,
-            width=400
-        ),
-        actions=[
-            ft.TextButton("Fechar",
-                          style=cancelar_style,
-                          on_click=lambda e: (setattr(modal, 'open', False), instancia.page.update()))
-        ],
-        shape=ft.RoundedRectangleBorder(radius=7)
-    )
-
-    instancia.page.overlay.append(modal)
-    modal.open = True
-    instancia.page.update()
 
 def validar_campos_obrigatorios(*campos):
     valido = True
@@ -300,10 +306,7 @@ def filtrar_generico(instancia, campo, atualizar_callback):
         atualizar_callback()
     return _filter
 
-
-def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, colunas_pesquisa, campo_filtro_instancia,
-                          funcao_atualizar_nome, funcao_abrir_modal, funcao_validar_editar=None,
-                          funcao_extra_editar=None):
+def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, colunas_pesquisa, campo_filtro_instancia,funcao_atualizar_nome, funcao_abrir_modal, funcao_validar_editar=None,funcao_extra_editar=None):
     campos_banco = [col["campo"] for col in colunas_config]
     nomes_colunas = [col["nome"] for col in colunas_config]
     larguras_colunas = [col["largura"] for col in colunas_config]
@@ -329,12 +332,13 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
                         ft.Container(ft.Text(str(valor) if valor is not None else "-"), width=larguras_colunas[i]))
                 )
 
-            item_id = linha[0]
+            if nome_tabela == "pedidos_com_clientes":
+                item_id = linha[0]
+            else:
+                item_id = linha[0]
 
-            # Criar os itens do menu dinamicamente
             itens_menu = []
 
-            # Adicionar "Detalhes" apenas para a tabela de pedidos
             if nome_tabela == "pedidos":
                 itens_menu.append(
                     ft.PopupMenuItem(
@@ -349,7 +353,6 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
                     )
                 )
 
-            # Sempre adicionar Editar e Apagar para todas as tabelas
             itens_menu.extend([
                 ft.PopupMenuItem(
                     text="Editar",
@@ -394,11 +397,10 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
         on_change_handlers = []
 
         for i, col in enumerate(colunas_config):
-            if col.get("editable", True):  # Apenas adiciona colunas editáveis
+            if col.get("editable", True):
                 colunas_editaveis.append(col["campo"])
                 nomes_editaveis.append(col["nome"])
 
-                # Garante que pegamos o valor correto da linha
                 valor = linha[i] if i < len(linha) else ""
                 valores_editaveis.append(valor)
 
@@ -430,7 +432,6 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
 
         validar_fn = funcao_validar if funcao_validar else validar_padrao
 
-        # Criar os campos editáveis
         campos = []
         for i in range(len(colunas_editaveis)):
             label = nomes_editaveis[i]
@@ -440,7 +441,6 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
             if i < len(on_change_handlers) and on_change_handlers[i]:
                 handler = on_change_handlers[i]
 
-            # Cria o campo com o handler correto
             campo = ft.TextField(
                 label=label,
                 value=value,
@@ -452,16 +452,13 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
         def salvar(e):
             novos_valores = [c.value.strip() for c in campos]
 
-            # Verifica se há erros nos campos
             for c in campos:
                 if c.error_text:
                     return
 
-            # Valida os valores
             if not validar_fn(novos_valores):
                 return
 
-            # Salva no banco
             salvar_generico(
                 conectar_fn=instancia.conectar,
                 tabela=nome_tabela,
@@ -473,13 +470,9 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
 
             if funcao_extra:
                 funcao_extra()
-
-            # Fecha o modal e atualiza
             modal.open = False
             instancia.page.update()
             getattr(instancia, funcao_atualizar_nome)()
-
-        # Cria o modal DIRETAMENTE aqui, sem chamar editar_generico
         modal = ft.AlertDialog(
             modal=True,
             content=ft.Column(
@@ -494,43 +487,6 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
             actions=[
                 ft.TextButton("Salvar", style=salvar_style, on_click=salvar),
                 ft.TextButton("Cancelar",
-                              style=cancelar_style,
-                              on_click=lambda e: (setattr(modal, 'open', False), instancia.page.update()))
-            ],
-            shape=ft.RoundedRectangleBorder(radius=7)
-        )
-
-        instancia.page.overlay.append(modal)
-        modal.open = True
-        instancia.page.update()
-
-    def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
-        """
-        Função para abrir modal de detalhes do pedido
-        Por enquanto só abre um modal vazio
-        """
-        # Para pedidos, o ID real é o numero_pedido (segunda coluna)
-        if nome_tabela == "pedidos" and len(linha) > 1:
-            numero_pedido = linha[1]  # Segunda coluna = numero_pedido
-            titulo = f"Detalhes do Pedido #{numero_pedido}"
-        else:
-            titulo = f"Detalhes do {nome_tabela.capitalize()} #{item_id}"
-
-        # Criar um modal básico
-        modal = ft.AlertDialog(
-            modal=True,
-            title=ft.Text(titulo, font_family="JosefinBold", size=20),
-            content=ft.Column(
-                controls=[
-                    ft.Text(f"Visualizando detalhes do pedido ID: {item_id}"),
-                    ft.Text("Aqui serão mostrados os itens do pedido..."),
-                ],
-                spacing=10,
-                tight=True,
-                width=400
-            ),
-            actions=[
-                ft.TextButton("Fechar",
                               style=cancelar_style,
                               on_click=lambda e: (setattr(modal, 'open', False), instancia.page.update()))
             ],
