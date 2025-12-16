@@ -1,6 +1,6 @@
 import flet as ft
 import sqlite3
-# #E53935 Background
+#E53935 Background
 
 salvar_style = ft.ButtonStyle(padding=20, alignment=ft.alignment.center_left, color="#EEEEEE", bgcolor="#273273",
                               shape=ft.RoundedRectangleBorder(radius=7),

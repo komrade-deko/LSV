@@ -267,7 +267,6 @@ class AdmWindow:
             def criar(e):
                 dialog.open = False
                 page.update()
-                # abre o modal de criar cliente para o usuário
                 self._abrir_modal_clientes_(page)
 
             dialog = ft.AlertDialog(
@@ -307,7 +306,6 @@ class AdmWindow:
 
             nome_cliente = cliente_field.value.strip()
 
-            # verificar se cliente existe
             conn_check, cursor_check = self.conectar()
             cursor_check.execute("SELECT id FROM clientes WHERE nome = ?", (nome_cliente,))
             row = cursor_check.fetchone()
@@ -674,7 +672,6 @@ class AdmWindow:
                 ),
             ],
         )
-
         return ft.Container(
             expand=True,
             bgcolor="#FDF4F5",
