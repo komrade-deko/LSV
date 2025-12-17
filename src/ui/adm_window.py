@@ -188,7 +188,7 @@ class AdmWindow:
             )
 
             quantidade = ft.TextField(
-                label="Qnt.",
+                label="Qnt." ,
                 width=77,
                 on_change=lambda e: (apenas_numeros(e), limpar_erro(e))
             )
