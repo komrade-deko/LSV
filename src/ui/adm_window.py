@@ -1,7 +1,7 @@
 import os
 from src.modules.utils import *
 
-pedidos_producao = 47
+
 menu_lateral_style = ft.ButtonStyle(color="black", text_style=ft.TextStyle(font_family="JosefinLight", size=16,weight=ft.FontWeight.BOLD),alignment=ft.alignment.center_left)
 
 class AdmWindow:
@@ -629,7 +629,19 @@ class AdmWindow:
         modal.open = True
         page.update()
 
+    def _contar_pedidos(self, status):
+        conn, cursor = self.conectar()
+        cursor.execute(
+            "SELECT COUNT(*) FROM pedidos WHERE status = ?",
+            (status,)
+        )
+        total = cursor.fetchone()[0]
+        conn.close()
+        return total
+
     def _pedidos_(self):
+        em_producao = self._contar_pedidos("Em Produção")
+        em_entrega = self._contar_pedidos("Em Entrega")
         colunas_config = [
             {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 190, "tipo": "int","editable": False},
             {"nome": "Cliente", "campo": "cliente_nome", "largura": 150, "tipo": "str", "editable": False},
@@ -656,30 +668,30 @@ class AdmWindow:
             spacing=20,
             alignment=ft.MainAxisAlignment.CENTER,
             controls=[
-                ft.Container(
-                    width=300,
-                    height=100,
-                    bgcolor="white",
-                    border_radius=15,
-                    padding=10,
-                    border=ft.border.all(1, "#CBCBCB"),
-                    content=ft.Row(
-                        alignment=ft.MainAxisAlignment.START,
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                        spacing=15,
-                        controls=[
-                            ft.Container(ft.Image(src="loja.svg", width=50, height=50), margin=ft.margin.only(left=20)),
-                            ft.Column(
-                                spacing=-10,
-                                alignment=ft.MainAxisAlignment.CENTER,
-                                controls=[
-                                    ft.Text("47", font_family="JosefinBold", size=26),
-                                    ft.Text("Pedidos", size=16, color="#B7B89F"),
-                                ],
-                            ),
-                        ],
-                    ),
-                ),
+                # ft.Container(
+                #     width=300,
+                #     height=100,
+                #     bgcolor="white",
+                #     border_radius=15,
+                #     padding=10,
+                #     border=ft.border.all(1, "#CBCBCB"),
+                #     content=ft.Row(
+                #         alignment=ft.MainAxisAlignment.START,
+                #         vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                #         spacing=15,
+                #         controls=[
+                #             ft.Container(ft.Image(src="loja.svg", width=50, height=50), margin=ft.margin.only(left=20)),
+                #             ft.Column(
+                #                 spacing=-10,
+                #                 alignment=ft.MainAxisAlignment.CENTER,
+                #                 controls=[
+                #                     ft.Text("47", font_family="JosefinBold", size=26),
+                #                     ft.Text("Pedidos", size=16, color="#B7B89F"),
+                #                 ],
+                #             ),
+                #         ],
+                #     ),
+                # ),
                 ft.Container(
                     width=300,
                     height=100,
@@ -698,7 +710,7 @@ class AdmWindow:
                                 spacing=-10,
                                 alignment=ft.MainAxisAlignment.CENTER,
                                 controls=[
-                                    ft.Text("47", font_family="JosefinBold", size=26),
+                                    ft.Text(str(em_producao), font_family="JosefinBold", size=26),
                                     ft.Text("Em Produção", size=16, color="#B7B89F"),
                                 ],
                             ),
@@ -723,7 +735,7 @@ class AdmWindow:
                                 spacing=-10,
                                 alignment=ft.MainAxisAlignment.CENTER,
                                 controls=[
-                                    ft.Text("47", font_family="JosefinBold", size=26),
+                                    ft.Text(str(em_entrega), font_family="JosefinBold", size=26),
                                     ft.Text("Em Entrega", size=16, color="#B7B89F"),
                                 ],
                             ),
