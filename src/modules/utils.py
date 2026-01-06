@@ -59,6 +59,21 @@ def formatar_data(e):
                        ("/" + v[4:8] if len(v) >= 5 else ""))
     e.control.update()
 
+def formatar_data_visual(valor):
+    if isinstance(valor, str) and "-" in valor:
+        partes = valor.split("-")
+        if len(partes) == 3:
+            ano, mes, dia = partes
+            return f"{dia}/{mes}/{ano}"
+    return valor
+
+def formatar_valor_visual(valor):
+    try:
+        v = float(valor)
+        return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except:
+        return valor
+
 def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
     numero_pedido = item_id
     cliente_nome = "N/A"
@@ -67,33 +82,50 @@ def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
     status = "N/A"
 
     if nome_tabela in ["pedidos", "pedidos_com_clientes"]:
-        if len(linha) > 0:
-            numero_pedido = linha[0] if len(linha) > 0 else item_id
+        if linha:
+            numero_pedido = linha[0]
             cliente_nome = linha[1] if len(linha) > 1 else "N/A"
             data_entrega = linha[2] if len(linha) > 2 else "N/A"
             valor = linha[3] if len(linha) > 3 else "N/A"
             status = linha[4] if len(linha) > 4 else "N/A"
 
-        titulo = f"Detalhes do Pedido #{numero_pedido}"
-
         conn, cursor = instancia.conectar()
-        cursor.execute("""
-            SELECT 
-                produto_nome,
-                quantidade,
-                preco_unitario,
-                total_item
-            FROM vw_itens_pedido_detalhados
-            WHERE pedido_id = ?
-            ORDER BY id
-        """, (item_id,))
 
-        itens = cursor.fetchall()
+        cursor.execute(
+            "SELECT id FROM pedidos WHERE numero_pedido = ?",
+            (numero_pedido,)
+        )
+        resultado = cursor.fetchone()
+
+        if not resultado:
+            itens = []
+        else:
+            pedido_id = resultado[0]
+
+            cursor.execute("""
+                SELECT
+                    produto_nome,
+                    quantidade,
+                    preco_unitario,
+                    total_item
+                FROM vw_itens_pedido_detalhados
+                WHERE pedido_id = ?
+                ORDER BY id
+            """, (pedido_id,))
+
+            itens = cursor.fetchall()
+
         conn.close()
+
+        titulo = f"Detalhes do Pedido #{numero_pedido}"
 
     else:
         titulo = f"Detalhes do {nome_tabela.capitalize()} #{item_id}"
         itens = []
+
+    # 👉 AQUI ESTÁ A MUDANÇA REAL
+    data_entrega_formatada = formatar_data_visual(data_entrega)
+    valor_formatado = formatar_valor_visual(valor)
 
     tabela_info = ft.DataTable(
         columns=[
@@ -108,8 +140,8 @@ def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
                 cells=[
                     ft.DataCell(ft.Container(ft.Text(str(numero_pedido)), width=190)),
                     ft.DataCell(ft.Container(ft.Text(str(cliente_nome)), width=150)),
-                    ft.DataCell(ft.Container(ft.Text(str(data_entrega)), width=100)),
-                    ft.DataCell(ft.Container(ft.Text(f"R$ {str(valor)}"), width=150)),
+                    ft.DataCell(ft.Container(ft.Text(str(data_entrega_formatada)), width=100)),
+                    ft.DataCell(ft.Container(ft.Text(str(valor_formatado)), width=150)),
                     ft.DataCell(ft.Container(ft.Text(str(status)), width=200)),
                 ]
             )
@@ -119,35 +151,13 @@ def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
         column_spacing=20,
     )
 
-    container_info = ft.Container(
-        bgcolor="white",
-        padding=10,
-        border_radius=10,
-        border=ft.border.all(1, "#D2D2D2"),
-        content=ft.Column(
-            spacing=0,
-            controls=[
-                ft.Container(
-                    content=ft.Text("Informações do Pedido", font_family="JosefinBold", size=16, color="#273273"),
-                    margin=ft.margin.only(bottom=10)
-                ),
-                tabela_info
-            ]
-        )
-    )
-
     rows_itens = []
     for item in itens:
-        produto_nome = item[0]
-        quantidade = item[1]
-        preco_unitario = item[2]
-        total_item = item[3]
-
         rows_itens.append(
             ft.DataRow(
                 cells=[
-                    ft.DataCell(ft.Container(ft.Text(produto_nome), width=400)),
-                    ft.DataCell(ft.Container(ft.Text(str(quantidade)), width=200)),
+                    ft.DataCell(ft.Container(ft.Text(item[0]), width=400)),
+                    ft.DataCell(ft.Container(ft.Text(str(item[1])), width=200)),
                 ]
             )
         )
@@ -173,37 +183,12 @@ def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
         column_spacing=20,
     )
 
-    container_itens = ft.Container(
-        bgcolor="white",
-        padding=10,
-        border_radius=10,
-        border=ft.border.all(1, "#D2D2D2"),
-        height=250,
-        content=ft.Column(
-            spacing=0,
-            controls=[
-                ft.Container(
-                    content=ft.Text("Itens do Pedido", font_family="JosefinBold", size=16, color="#273273"),
-                    margin=ft.margin.only(bottom=10)
-                ),
-                ft.Container(
-                    expand=True,
-                    content=ft.Column(
-                        controls=[tabela_itens],
-                        scroll=ft.ScrollMode.AUTO
-                    )
-                )
-            ]
-        )
-    )
-
     conteudo = ft.Column(
         controls=[
-            container_info,
+            tabela_info,
             ft.Container(height=20),
-            container_itens
+            tabela_itens
         ],
-        spacing=0,
         width=900,
     )
 
@@ -213,9 +198,11 @@ def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
         title=ft.Text(titulo, font_family="JosefinBold", size=20, color="#273273"),
         content=conteudo,
         actions=[
-            ft.TextButton("Fechar",
-                          style=cancelar_style,
-                          on_click=lambda e: (setattr(modal, 'open', False), instancia.page.update()))
+            ft.TextButton(
+                "Fechar",
+                style=cancelar_style,
+                on_click=lambda e: (setattr(modal, "open", False), instancia.page.update())
+            )
         ],
         shape=ft.RoundedRectangleBorder(radius=7)
     )
@@ -461,9 +448,22 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
         for linha in dados:
             cells = []
             for i, valor in enumerate(linha):
+                campo = campos_banco[i]
+                valor_exibicao = valor
+
+                if nome_tabela in ["pedidos", "pedidos_com_clientes"]:
+                    if campo == "data_entrega":
+                        valor_exibicao = formatar_data_visual(valor)
+                    elif campo == "valor":
+                        valor_exibicao = formatar_valor_visual(valor)
+
                 cells.append(
                     ft.DataCell(
-                        ft.Container(ft.Text(str(valor) if valor is not None else "-"), width=larguras_colunas[i]))
+                        ft.Container(
+                            ft.Text(str(valor_exibicao) if valor_exibicao is not None else "-"),
+                            width=larguras_colunas[i]
+                        )
+                    )
                 )
 
             item_id = linha[0]
@@ -517,7 +517,8 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
 
         return linhas
 
-    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha,funcao_validar, funcao_extra, colunas_config):
+    def _abrir_editar(instancia, nome_tabela, item_id, campos_banco, nomes_colunas, linha,
+                      funcao_validar, funcao_extra, colunas_config):
 
         tabela_update = "pedidos" if nome_tabela == "pedidos_com_clientes" else nome_tabela
         titulo_tabela = "Pedidos" if nome_tabela == "pedidos_com_clientes" else nome_tabela.capitalize()
@@ -544,10 +545,12 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
                             campo,
                             item_id
                         )
+
                     on_change_handlers.append(wrap_dup)
                 elif handler:
                     def wrap_handler(e, h=handler):
                         h(e)
+
                     on_change_handlers.append(wrap_handler)
                 else:
                     on_change_handlers.append(None)
@@ -559,9 +562,16 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
 
         campos = []
         for i in range(len(colunas_editaveis)):
+            valor = valores_editaveis[i]
+
+            # 👉 AQUI ESTÁ A CORREÇÃO
+            nome_lower = nomes_editaveis[i].lower()
+            if "data" in nome_lower and valor:
+                valor = formatar_data_visual(valor)
+
             campo = ft.TextField(
                 label=nomes_editaveis[i],
-                value=str(valores_editaveis[i]) if valores_editaveis[i] is not None else "",
+                value=str(valor) if valor is not None else "",
                 on_change=on_change_handlers[i] if i < len(on_change_handlers) else None
             )
             campos.append(campo)
@@ -605,9 +615,11 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
             ),
             actions=[
                 ft.TextButton("Salvar", style=salvar_style, on_click=salvar),
-                ft.TextButton("Cancelar",
-                              style=cancelar_style,
-                              on_click=lambda e: (setattr(modal, 'open', False), instancia.page.update()))
+                ft.TextButton(
+                    "Cancelar",
+                    style=cancelar_style,
+                    on_click=lambda e: (setattr(modal, "open", False), instancia.page.update())
+                )
             ],
             shape=ft.RoundedRectangleBorder(radius=7)
         )

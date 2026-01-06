@@ -143,15 +143,11 @@ class AdmWindow:
         produtos_info = cursor.fetchall()
         conn.close()
 
-        # Criar dicionário para mapear nome do produto para (id, preco)
         produtos_map = {}
         opcoes_pedido = []
         for prod_id, nome, preco in produtos_info:
-            # Converter preço para float (remover formatação)
             try:
-                # Se o preço está formatado como "R$ 1.200,50", converter para float
                 if isinstance(preco, str):
-                    # Remover R$, pontos e substituir vírgula por ponto
                     preco_clean = preco.replace('R$', '').replace('.', '').replace(',', '.').strip()
                     preco_float = float(preco_clean)
                 else:
@@ -320,15 +316,13 @@ class AdmWindow:
                 quantidade = linha.quantidade.value
 
                 if produto_nome and quantidade:
-                    # Calcular valor do item
                     produto_info = produtos_map.get(produto_nome)
                     if produto_info:
                         preco_unitario = produto_info["preco"]  # Já está como float
                         try:
                             qtd_int = int(quantidade) if quantidade else 0
-                            # Usar round para evitar problemas de precisão
-                            valor_item = round(preco_unitario * qtd_int, 2)
-                            valor_total = round(valor_total + valor_item, 2)
+                            valor_item = preco_unitario * qtd_int
+                            valor_total += valor_item
 
                             pedidos.append({
                                 "produto_id": produto_info["id"],
@@ -347,7 +341,6 @@ class AdmWindow:
 
             nome_cliente = cliente_field.value.strip()
 
-            # Verificar se cliente existe
             conn_check, cursor_check = self.conectar()
             cursor_check.execute("SELECT id FROM clientes WHERE nome = ?", (nome_cliente,))
             row = cursor_check.fetchone()
@@ -359,11 +352,9 @@ class AdmWindow:
 
             cliente_id = row[0]
 
-            # Obter próximo número de pedido
             cursor_check.execute("SELECT COALESCE(MAX(numero_pedido), 22) + 1 FROM pedidos")
             proximo_numero = cursor_check.fetchone()[0]
 
-            # Formatar data para YYYY-MM-DD (formato SQLite)
             data_entrega = data_field.value
             if data_entrega:
                 try:
@@ -387,7 +378,6 @@ class AdmWindow:
                 data_entrega_sql = ""
 
             try:
-                # Inserir pedido na tabela pedidos
                 cursor_check.execute("""
                     INSERT INTO pedidos (cliente_id, data_entrega, numero_pedido, valor, status)
                     VALUES (?, ?, ?, ?, ?)
@@ -395,34 +385,24 @@ class AdmWindow:
 
                 pedido_id = cursor_check.lastrowid
 
-                # Inserir itens na tabela itens_pedido - usando numero_pedido, não pedido_id
+                # Inserir itens na tabela itens_pedido
                 for item in pedidos:
                     cursor_check.execute("""
                         INSERT INTO itens_pedido (produto_id, pedido_id, quantidade)
                         VALUES (?, ?, ?)
-                    """, (item["produto_id"], proximo_numero, int(item["quantidade"])))  # Usando proximo_numero aqui!
+                    """, (item["produto_id"], pedido_id, int(item["quantidade"])))
 
                 conn_check.commit()
 
-                # DEBUG: Print para verificação
-                print(f"Pedido #{proximo_numero} salvo com sucesso!")
-                print(f"Cliente: {nome_cliente} (id: {cliente_id})")
-                print(f"Data de Entrega: {data_field.value}")
-                print(f"Valor Total: R$ {valor_total:.2f}")
-                print(f"ID do Pedido: {pedido_id}")
-                print(f"Numero Pedido: {proximo_numero}")
-                print(f"Itens: {len(pedidos)} itens adicionados")
 
             except Exception as ex:
                 print(f"Erro ao salvar pedido: {ex}")
-                # Mostrar erro na interface
                 import traceback
                 traceback.print_exc()
             finally:
                 conn_check.close()
 
             fechar_modal(modal, page)
-            # Atualizar tabela de pedidos após salvar
             if hasattr(self, '_atualizar_tabela_pedidos'):
                 self._atualizar_tabela_pedidos()
 
@@ -657,27 +637,6 @@ class AdmWindow:
             {"nome": "Valor", "campo": "valor", "largura": 150, "tipo": "float", "editable": True,"on_change": formatar_valor},
             {"nome": "Status", "campo": "status", "largura": 200, "tipo": "str", "editable": False},
         ]
-
-        def validar_pedido(vals):
-            try:
-                data = vals[0].strip() if len(vals) > 0 else ""
-                if not data or len(data) != 10:
-                    return False
-
-                if len(vals) > 1:
-                    valor_str = vals[1].replace("R$", "").replace(".", "").replace(",", ".").strip()
-                    if not valor_str:
-                        return False
-
-                    valor_float = float(valor_str)
-                    if valor_float <= 0:
-                        return False
-
-                return True
-
-            except (ValueError, IndexError, AttributeError):
-                return False
-
         if not hasattr(self, 'filtro_pedidos'):
             self.filtro_pedidos = ""
 
