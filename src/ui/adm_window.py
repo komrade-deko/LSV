@@ -139,9 +139,28 @@ class AdmWindow:
 
     def _abrir_modal_pedido_(self, page):
         conn, cursor = self.conectar()
-        cursor.execute("SELECT nome FROM produtos")
-        opcoes_pedido = [row[0] for row in cursor.fetchall()]
+        cursor.execute("SELECT id, nome, preco FROM produtos")
+        produtos_info = cursor.fetchall()
         conn.close()
+
+        # Criar dicionário para mapear nome do produto para (id, preco)
+        produtos_map = {}
+        opcoes_pedido = []
+        for prod_id, nome, preco in produtos_info:
+            # Converter preço para float (remover formatação)
+            try:
+                # Se o preço está formatado como "R$ 1.200,50", converter para float
+                if isinstance(preco, str):
+                    # Remover R$, pontos e substituir vírgula por ponto
+                    preco_clean = preco.replace('R$', '').replace('.', '').replace(',', '.').strip()
+                    preco_float = float(preco_clean)
+                else:
+                    preco_float = float(preco)
+            except:
+                preco_float = 0.0
+
+            produtos_map[nome] = {"id": prod_id, "preco": preco_float}
+            opcoes_pedido.append(nome)
 
         linhas_container = ft.ListView(spacing=5, height=90, auto_scroll=False)
 
@@ -188,7 +207,7 @@ class AdmWindow:
             )
 
             quantidade = ft.TextField(
-                label="Qnt." ,
+                label="Qnt.",
                 width=77,
                 on_change=lambda e: (apenas_numeros(e), limpar_erro(e))
             )
@@ -291,43 +310,127 @@ class AdmWindow:
                 erro = True
 
             pedidos = []
+            valor_total = 0.0
 
             for linha in linhas_container.controls:
                 if not validar_campos_obrigatorios(linha.dropdown, linha.quantidade):
                     erro = True
 
-                pedidos.append({
-                    "item": linha.dropdown.value,
-                    "qtd": linha.quantidade.value
-                })
+                produto_nome = linha.dropdown.value
+                quantidade = linha.quantidade.value
+
+                if produto_nome and quantidade:
+                    # Calcular valor do item
+                    produto_info = produtos_map.get(produto_nome)
+                    if produto_info:
+                        preco_unitario = produto_info["preco"]  # Já está como float
+                        try:
+                            qtd_int = int(quantidade) if quantidade else 0
+                            # Usar round para evitar problemas de precisão
+                            valor_item = round(preco_unitario * qtd_int, 2)
+                            valor_total = round(valor_total + valor_item, 2)
+
+                            pedidos.append({
+                                "produto_id": produto_info["id"],
+                                "produto_nome": produto_nome,
+                                "quantidade": quantidade,
+                                "preco_unitario": preco_unitario,
+                                "valor_item": valor_item
+                            })
+                        except ValueError:
+                            linha.quantidade.error_text = "Quantidade inválida"
+                            linha.quantidade.update()
+                            erro = True
 
             if erro:
                 return
 
             nome_cliente = cliente_field.value.strip()
 
+            # Verificar se cliente existe
             conn_check, cursor_check = self.conectar()
             cursor_check.execute("SELECT id FROM clientes WHERE nome = ?", (nome_cliente,))
             row = cursor_check.fetchone()
-            conn_check.close()
 
             if not row:
                 abrir_confirmacao_criar_cliente()
+                conn_check.close()
                 return
 
             cliente_id = row[0]
 
-            print("Cliente:", nome_cliente, " (id:", cliente_id, ")")
-            print("Data de Entrega:", data_field.value)
-            print("Pedidos:", pedidos)
+            # Obter próximo número de pedido
+            cursor_check.execute("SELECT COALESCE(MAX(numero_pedido), 22) + 1 FROM pedidos")
+            proximo_numero = cursor_check.fetchone()[0]
+
+            # Formatar data para YYYY-MM-DD (formato SQLite)
+            data_entrega = data_field.value
+            if data_entrega:
+                try:
+                    partes = data_entrega.split('/')
+                    if len(partes) == 3:
+                        # Validar dia, mês, ano
+                        dia, mes, ano = partes
+                        data_entrega_sql = f"{ano}-{mes}-{dia}"
+                    else:
+                        data_entrega_sql = data_entrega
+                        data_field.error_text = "Formato inválido (DD/MM/AAAA)"
+                        data_field.update()
+                        conn_check.close()
+                        return
+                except:
+                    data_field.error_text = "Data inválida"
+                    data_field.update()
+                    conn_check.close()
+                    return
+            else:
+                data_entrega_sql = ""
+
+            try:
+                # Inserir pedido na tabela pedidos
+                cursor_check.execute("""
+                    INSERT INTO pedidos (cliente_id, data_entrega, numero_pedido, valor, status)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (cliente_id, data_entrega_sql, proximo_numero, valor_total, "Em Produção"))
+
+                pedido_id = cursor_check.lastrowid
+
+                # Inserir itens na tabela itens_pedido - usando numero_pedido, não pedido_id
+                for item in pedidos:
+                    cursor_check.execute("""
+                        INSERT INTO itens_pedido (produto_id, pedido_id, quantidade)
+                        VALUES (?, ?, ?)
+                    """, (item["produto_id"], proximo_numero, int(item["quantidade"])))  # Usando proximo_numero aqui!
+
+                conn_check.commit()
+
+                # DEBUG: Print para verificação
+                print(f"Pedido #{proximo_numero} salvo com sucesso!")
+                print(f"Cliente: {nome_cliente} (id: {cliente_id})")
+                print(f"Data de Entrega: {data_field.value}")
+                print(f"Valor Total: R$ {valor_total:.2f}")
+                print(f"ID do Pedido: {pedido_id}")
+                print(f"Numero Pedido: {proximo_numero}")
+                print(f"Itens: {len(pedidos)} itens adicionados")
+
+            except Exception as ex:
+                print(f"Erro ao salvar pedido: {ex}")
+                # Mostrar erro na interface
+                import traceback
+                traceback.print_exc()
+            finally:
+                conn_check.close()
 
             fechar_modal(modal, page)
+            # Atualizar tabela de pedidos após salvar
+            if hasattr(self, '_atualizar_tabela_pedidos'):
+                self._atualizar_tabela_pedidos()
 
         modal = ft.AlertDialog(
             modal=True,
             content=ft.Column(
                 [
-                    ft.Text("Adicionar Pedidos.", font_family="JosefinBold", size=20),
+                    ft.Text("Adicionar Pedidos", font_family="JosefinBold", size=20),
                     cliente_field,
                     data_field,
                     linhas_container
@@ -461,7 +564,6 @@ class AdmWindow:
                 limpar_erro(e)
             )
         )
-
         preco = ft.TextField(
             label="Preço Unitário",
             prefix_text="R$",
@@ -470,7 +572,6 @@ class AdmWindow:
                 limpar_erro(e)
             )
         )
-
         estoque = ft.TextField(
             label="Estoque",
             on_change=lambda e: (
