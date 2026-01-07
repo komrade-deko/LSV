@@ -80,8 +80,8 @@ cursor = banco.cursor()
 # """)
 
 cursor.execute(
-    "DELETE FROM itens_pedido WHERE id = ?",
-    (16,)
+    "DELETE FROM clientes WHERE id = ?",
+    (60,)
 )
 
 banco.commit()

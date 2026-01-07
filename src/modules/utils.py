@@ -1,18 +1,88 @@
 import flet as ft
 import sqlite3
 #E53935 Background
+import unicodedata
 
 salvar_style = ft.ButtonStyle(padding=20, alignment=ft.alignment.center_left, color="#EEEEEE", bgcolor="#273273",
-                              shape=ft.RoundedRectangleBorder(radius=7),
+                      shape=ft.RoundedRectangleBorder(radius=7),
                               text_style=ft.TextStyle(size=14, font_family="inter"))
 cancelar_style = ft.ButtonStyle(padding=20, alignment=ft.alignment.center, color="#212121", bgcolor="#BDBDBD",
                                 shape=ft.RoundedRectangleBorder(radius=7),
                                 text_style=ft.TextStyle(size=14, font_family="inter"))
 
+def atualizar_cards_pedidos(instancia):
+    if not hasattr(instancia, "txt_em_producao"):
+        return
+
+    conn, cursor = instancia.conectar()
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM pedidos WHERE status = 'Em Produção'"
+    )
+    em_producao = cursor.fetchone()[0]
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM pedidos WHERE status = 'Em Entrega'"
+    )
+    em_entrega = cursor.fetchone()[0]
+
+    conn.close()
+
+    instancia.txt_em_producao.value = str(em_producao)
+    instancia.txt_em_entrega.value = str(em_entrega)
+
+    if instancia.txt_em_producao.page:
+        instancia.txt_em_producao.update()
+
+    if instancia.txt_em_entrega.page:
+        instancia.txt_em_entrega.update()
+
+def atualizar_ui_pedidos(instancia):
+    if hasattr(instancia, "_atualizar_tabela_pedidos"):
+        instancia._atualizar_tabela_pedidos()
+
+    if hasattr(instancia, "txt_em_producao") and hasattr(instancia, "txt_em_entrega"):
+        atualizar_cards_pedidos(
+            instancia.conectar,
+            instancia.txt_em_producao,
+            instancia.txt_em_entrega
+        )
+
+def contar_pedidos(conectar_fn, status):
+    conn, cursor = conectar_fn()
+    cursor.execute(
+        "SELECT COUNT(*) FROM pedidos WHERE status = ?",
+        (status,)
+    )
+    total = cursor.fetchone()[0]
+    conn.close()
+    return total
+
+def normalizar_texto(valor: str) -> str:
+    if not valor:
+        return ""
+    valor = valor.strip().lower()
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', valor)
+        if unicodedata.category(c) != 'Mn'
+    )
+
 def apenas_numeros(e):
     v = ''.join([c for c in e.control.value if c.isdigit()])
     e.control.value = v
     e.control.update()
+
+def formatar_datetime_visual(valor):
+    if not valor:
+        return ""
+
+    try:
+        data, hora = valor.split(" ")
+        ano, mes, dia = data.split("-")
+        hora_formatada = hora[:5]
+        return f"{dia}/{mes}/{ano} {hora_formatada}"
+    except Exception:
+        return valor
 
 def formatar_valor(e):
     v = e.control.value
@@ -48,6 +118,9 @@ def formatar_valor(e):
 
 def limpar_erro(e):
     c = e.control
+    if c.error_text == "Valor já existe":
+        return
+
     if c.value and c.value.strip():
         c.error_text = None
         c.border_color = None
@@ -123,7 +196,6 @@ def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
         titulo = f"Detalhes do {nome_tabela.capitalize()} #{item_id}"
         itens = []
 
-    # 👉 AQUI ESTÁ A MUDANÇA REAL
     data_entrega_formatada = formatar_data_visual(data_entrega)
     valor_formatado = formatar_valor_visual(valor)
 
@@ -211,38 +283,35 @@ def _abrir_detalhes(instancia, nome_tabela, item_id, linha, nomes_colunas):
     modal.open = True
     instancia.page.update()
 
-def validar_duplicado_generico(e, conectar_fn, tabela, coluna, item_id=None):
-    valor = e.control.value.strip() if e.control.value else ""
-
+def validar_duplicado_generico(e, conectar_fn, tabela, campo, item_id=None):
+    valor = e.control.value
     if not valor:
-        e.control.error_text = None
-        e.control.update()
         return
+
+    valor_normalizado = normalizar_texto(valor)
 
     conn, cursor = conectar_fn()
 
-    if item_id:
-        cursor.execute(
-            f"SELECT COUNT(*) FROM {tabela} WHERE {coluna} = ? AND id != ?",
-            (valor, item_id)
-        )
-    else:
-        cursor.execute(
-            f"SELECT COUNT(*) FROM {tabela} WHERE {coluna} = ?",
-            (valor,)
-        )
+    try:
+        cursor.execute(f"SELECT id, {campo} FROM {tabela}")
+        registros = cursor.fetchall()
 
-    existe = cursor.fetchone()[0] > 0
-    conn.close()
+        for reg_id, reg_valor in registros:
+            if item_id and reg_id == item_id:
+                continue
 
-    nome_label = e.control.label if hasattr(e.control, "label") else coluna.capitalize()
+            reg_normalizado = normalizar_texto(str(reg_valor))
 
-    if existe:
-        e.control.error_text = f"{nome_label} já existe"
-    else:
+            if valor_normalizado == reg_normalizado:
+                e.control.error_text = "Valor já existe"
+                e.control.update()
+                return
+
         e.control.error_text = None
+        e.control.update()
 
-    e.control.update()
+    finally:
+        conn.close()
 
 def fechar_modal(modal, page):
     modal.open = False
@@ -457,6 +526,12 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
                     elif campo == "valor":
                         valor_exibicao = formatar_valor_visual(valor)
 
+                if nome_tabela == "clientes" and campo == "criado_em":
+                    valor_exibicao = formatar_datetime_visual(valor)
+
+                if nome_tabela == "produtos" and campo == "preco":
+                    valor_exibicao = formatar_valor_visual(valor)
+
                 cells.append(
                     ft.DataCell(
                         ft.Container(
@@ -545,12 +620,10 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
                             campo,
                             item_id
                         )
-
                     on_change_handlers.append(wrap_dup)
                 elif handler:
                     def wrap_handler(e, h=handler):
                         h(e)
-
                     on_change_handlers.append(wrap_handler)
                 else:
                     on_change_handlers.append(None)
@@ -564,7 +637,6 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
         for i in range(len(colunas_editaveis)):
             valor = valores_editaveis[i]
 
-            # 👉 AQUI ESTÁ A CORREÇÃO
             nome_lower = nomes_editaveis[i].lower()
             if "data" in nome_lower and valor:
                 valor = formatar_data_visual(valor)
@@ -653,7 +725,12 @@ def criar_tabela_generica(instancia, titulo_tela, nome_tabela, colunas_config, c
 
     def atualizar_tabela():
         tabela_body.rows = montar_rows()
-        tabela_body.update()
+
+        if tabela_body.page:
+            tabela_body.update()
+
+        if nome_tabela in ["pedidos", "pedidos_com_clientes"]:
+            atualizar_cards_pedidos(instancia)
 
     setattr(instancia, funcao_atualizar_nome, atualizar_tabela)
 

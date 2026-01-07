@@ -1,8 +1,8 @@
 import os
+import sqlite3
 from src.modules.utils import *
 
-
-menu_lateral_style = ft.ButtonStyle(color="black", text_style=ft.TextStyle(font_family="JosefinLight", size=16,weight=ft.FontWeight.BOLD),alignment=ft.alignment.center_left)
+menu_lateral_style = ft.ButtonStyle(color="black",text_style=ft.TextStyle(font_family="JosefinLight",size=16,weight=ft.FontWeight.BOLD),alignment=ft.alignment.center_left)
 
 class AdmWindow:
     def __init__(self):
@@ -17,22 +17,17 @@ class AdmWindow:
 
     def conectar(self):
         conn = sqlite3.connect(self.DB_PATH)
-        cursor = conn.cursor()
-        return conn, cursor
+        return conn, conn.cursor()
 
     def _adm_window_(self, page: ft.Page):
         page.title = "ADM"
         page.window_width = 1200
         page.window_height = 800
-        page.padding = ft.padding.only(left=0, top=0, right=0, bottom=0)
+        page.padding = 0
         page.bgcolor = "#F8F8F8"
 
     def _menu_logo_(self):
-        lsv = ft.Image(
-            src="icon.png",
-            width=50,
-            height=50
-        )
+        lsv = ft.Image(src="icon.png", width=50, height=50)
         nome = ft.Text(
             "LSV",
             font_family="JosefinLight",
@@ -42,7 +37,7 @@ class AdmWindow:
         )
 
         return ft.Container(
-            padding=ft.padding.all(10),
+            padding=10,
             content=ft.Row(
                 spacing=10,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -64,7 +59,7 @@ class AdmWindow:
                 title=ft.Text("Sair"),
                 content=ft.Text("Tem certeza que deseja sair?"),
                 actions=[
-                    ft.TextButton("Sair", style=salvar_style, on_click=sair, ),
+                    ft.TextButton("Sair", style=salvar_style, on_click=sair),
                     ft.TextButton("Cancelar", on_click=fechar, style=cancelar_style),
                 ],
                 actions_alignment="end",
@@ -74,68 +69,41 @@ class AdmWindow:
             dialog.open = True
             page.update()
 
-        def go_home(e):
-            self.main_content.content = self._pedidos_()
-            set_fab(page, "#E47B12", self._abrir_modal_pedido_)
-            self.main_content.update()
-
-        def go_clientes(e):
-            self.main_content.content = self._clientes_()
-            set_fab(page, "pink", self._abrir_modal_clientes_)
-            self.main_content.update()
-            page.update()
-
-        def go_produtos(e):
-            self.main_content.content = self._estoque_()
-            set_fab(page, "green", self._abrir_modal_estoque_)
-            self.main_content.update()
-            page.update()
-
         links = [
-            ft.TextButton(
-                "Início",
-                width=400,
-                on_click=go_home,
-                style=menu_lateral_style
-            ),
-
-            ft.TextButton(
-                "Clientes",
-                width=500,
-                on_click=go_clientes,
-                style=menu_lateral_style
-            ),
-
-            ft.TextButton(
-                "Produtos",
-                width=500,
-                on_click=go_produtos,
-                style=menu_lateral_style
-            ),
-
-            ft.TextButton(
-                "Sair",
-                width=500,
-                on_click=lambda e: confirmar_saida(),
-                style=menu_lateral_style
-            )
+            ft.TextButton("Início", width=400, on_click=lambda e: self._navegar_para("pedidos"),
+                          style=menu_lateral_style),
+            ft.TextButton("Clientes", width=500, on_click=lambda e: self._navegar_para("clientes"),
+                          style=menu_lateral_style),
+            ft.TextButton("Produtos", width=500, on_click=lambda e: self._navegar_para("estoque"),
+                          style=menu_lateral_style),
+            ft.TextButton("Sair", width=500, on_click=lambda e: confirmar_saida(), style=menu_lateral_style)
         ]
-        menu = ft.Container(
+
+        return ft.Container(
             width=200,
             bgcolor="#E3E3E3",
-            padding=ft.padding.all(10),
+            padding=10,
             border_radius=ft.border_radius.only(top_right=20, bottom_right=20),
             margin=ft.margin.only(top=10, bottom=10),
             content=ft.Column(
                 spacing=10,
-                controls=[
-                    self._menu_logo_(),
-                    *links
-                ]
+                controls=[self._menu_logo_(), *links]
             )
         )
 
-        return menu
+    def _navegar_para(self, destino):
+        destinos = {
+            "pedidos": (self._pedidos_, "#E47B12", self._abrir_modal_pedido_),
+            "clientes": (self._clientes_, "pink", self._abrir_modal_clientes_),
+            "estoque": (self._estoque_, "green", self._abrir_modal_estoque_)
+        }
+
+        if destino in destinos:
+            func, cor, modal_func = destinos[destino]
+            self.main_content.content = func()
+            set_fab(self.page, cor, modal_func)
+            self.main_content.update()
+            self.page.update()
 
     def _abrir_modal_pedido_(self, page):
         conn, cursor = self.conectar()
@@ -145,13 +113,11 @@ class AdmWindow:
 
         produtos_map = {}
         opcoes_pedido = []
+
         for prod_id, nome, preco in produtos_info:
             try:
-                if isinstance(preco, str):
-                    preco_clean = preco.replace('R$', '').replace('.', '').replace(',', '.').strip()
-                    preco_float = float(preco_clean)
-                else:
-                    preco_float = float(preco)
+                preco_clean = str(preco).replace('R$', '').replace('.', '').replace(',', '.').strip()
+                preco_float = float(preco_clean)
             except:
                 preco_float = 0.0
 
@@ -208,25 +174,14 @@ class AdmWindow:
                 on_change=lambda e: (apenas_numeros(e), limpar_erro(e))
             )
 
-            btn_add = ft.IconButton(
-                icon=ft.Icons.ADD,
-                on_click=lambda e: adicionar_linha())
-            btn_remove = ft.IconButton(
-                icon=ft.Icons.REMOVE,
-                on_click=lambda e, l=linha: remover_linha(l))
-
-            add_container = ft.Container(
-                content=btn_add,
-                width=40)
-            remove_container = ft.Container(
-                content=btn_remove,
-                width=40)
+            btn_add = ft.IconButton(icon=ft.Icons.ADD, on_click=lambda e: adicionar_linha())
+            btn_remove = ft.IconButton(icon=ft.Icons.REMOVE, on_click=lambda e, l=linha: remover_linha(l))
 
             linha.controls = [
-                add_container,
+                ft.Container(content=btn_add, width=40),
                 ft.Column([dropdown], tight=True),
                 ft.Column([quantidade], tight=True),
-                remove_container
+                ft.Container(content=btn_remove, width=40)
             ]
 
             linha.dropdown = dropdown
@@ -242,15 +197,11 @@ class AdmWindow:
 
             nova = criar_linha()
             linhas_container.controls.append(nova)
-
             atualizar_opcoes()
             atualizar_botoes()
 
         def remover_linha(linha):
-            if linha not in linhas_container.controls:
-                return
-
-            if linhas_container.controls.index(linha) == 0:
+            if linha not in linhas_container.controls or linhas_container.controls.index(linha) == 0:
                 return
 
             linhas_container.controls.remove(linha)
@@ -260,12 +211,8 @@ class AdmWindow:
         adicionar_linha()
 
         first = linhas_container.controls[0]
-        first.btn_remove.visible = True
         first.btn_remove.disabled = True
         first.btn_remove.opacity = 0
-
-        atualizar_opcoes()
-        atualizar_botoes()
 
         cliente_field = ft.TextField(label="Cliente", on_change=limpar_erro)
         data_field = ft.TextField(
@@ -300,17 +247,15 @@ class AdmWindow:
             page.update()
 
         def salvar_modal(e):
-            erro = False
-
             if not validar_campos_obrigatorios(cliente_field, data_field):
-                erro = True
+                return
 
             pedidos = []
             valor_total = 0.0
 
             for linha in linhas_container.controls:
                 if not validar_campos_obrigatorios(linha.dropdown, linha.quantidade):
-                    erro = True
+                    return
 
                 produto_nome = linha.dropdown.value
                 quantidade = linha.quantidade.value
@@ -318,7 +263,7 @@ class AdmWindow:
                 if produto_nome and quantidade:
                     produto_info = produtos_map.get(produto_nome)
                     if produto_info:
-                        preco_unitario = produto_info["preco"]  # Já está como float
+                        preco_unitario = produto_info["preco"]
                         try:
                             qtd_int = int(quantidade) if quantidade else 0
                             valor_item = preco_unitario * qtd_int
@@ -334,77 +279,66 @@ class AdmWindow:
                         except ValueError:
                             linha.quantidade.error_text = "Quantidade inválida"
                             linha.quantidade.update()
-                            erro = True
-
-            if erro:
-                return
+                            return
 
             nome_cliente = cliente_field.value.strip()
+            conn, cursor = self.conectar()
 
-            conn_check, cursor_check = self.conectar()
-            cursor_check.execute("SELECT id FROM clientes WHERE nome = ?", (nome_cliente,))
-            row = cursor_check.fetchone()
+            cursor.execute("SELECT id FROM clientes WHERE nome = ?", (nome_cliente,))
+            row = cursor.fetchone()
 
             if not row:
                 abrir_confirmacao_criar_cliente()
-                conn_check.close()
+                conn.close()
                 return
 
             cliente_id = row[0]
-
-            cursor_check.execute("SELECT COALESCE(MAX(numero_pedido), 22) + 1 FROM pedidos")
-            proximo_numero = cursor_check.fetchone()[0]
+            cursor.execute("SELECT COALESCE(MAX(numero_pedido), 22) + 1 FROM pedidos")
+            proximo_numero = cursor.fetchone()[0]
 
             data_entrega = data_field.value
             if data_entrega:
                 try:
                     partes = data_entrega.split('/')
                     if len(partes) == 3:
-                        # Validar dia, mês, ano
                         dia, mes, ano = partes
                         data_entrega_sql = f"{ano}-{mes}-{dia}"
                     else:
-                        data_entrega_sql = data_entrega
                         data_field.error_text = "Formato inválido (DD/MM/AAAA)"
                         data_field.update()
-                        conn_check.close()
+                        conn.close()
                         return
                 except:
                     data_field.error_text = "Data inválida"
                     data_field.update()
-                    conn_check.close()
+                    conn.close()
                     return
             else:
                 data_entrega_sql = ""
 
             try:
-                cursor_check.execute("""
+                cursor.execute("""
                     INSERT INTO pedidos (cliente_id, data_entrega, numero_pedido, valor, status)
                     VALUES (?, ?, ?, ?, ?)
                 """, (cliente_id, data_entrega_sql, proximo_numero, valor_total, "Em Produção"))
 
-                pedido_id = cursor_check.lastrowid
+                pedido_id = cursor.lastrowid
 
-                # Inserir itens na tabela itens_pedido
                 for item in pedidos:
-                    cursor_check.execute("""
+                    cursor.execute("""
                         INSERT INTO itens_pedido (produto_id, pedido_id, quantidade)
                         VALUES (?, ?, ?)
                     """, (item["produto_id"], pedido_id, int(item["quantidade"])))
 
-                conn_check.commit()
-
+                conn.commit()
+                fechar_modal(modal, page)
+                if hasattr(self, '_atualizar_tabela_pedidos'):
+                    self._atualizar_tabela_pedidos()
 
             except Exception as ex:
                 print(f"Erro ao salvar pedido: {ex}")
-                import traceback
-                traceback.print_exc()
             finally:
-                conn_check.close()
-
-            fechar_modal(modal, page)
-            if hasattr(self, '_atualizar_tabela_pedidos'):
-                self._atualizar_tabela_pedidos()
+                conn.close()
 
         modal = ft.AlertDialog(
             modal=True,
@@ -433,23 +367,12 @@ class AdmWindow:
     def _abrir_modal_clientes_(self, page):
         conn, cursor = self.conectar()
 
-        nome_cliente = ft.TextField(
-            label="Cliente",
-            on_change=limpar_erro
-        )
-
-        email_cliente = ft.TextField(
-            label="Email",
-            on_change=limpar_erro
-        )
-
+        nome_cliente = ft.TextField(label="Cliente", on_change=limpar_erro)
+        email_cliente = ft.TextField(label="Email", on_change=limpar_erro)
         telefone_cliente = ft.TextField(
             label="Telefone",
             hint_text="(XX) XXXXXXXXX",
-            on_change=lambda e: (
-                formatar_telefone(e),
-                limpar_erro(e)
-            )
+            on_change=lambda e: (formatar_telefone(e), limpar_erro(e))
         )
 
         def salvar_modal(e):
@@ -461,26 +384,20 @@ class AdmWindow:
                 return
 
             cursor.execute("SELECT COUNT(*) FROM clientes WHERE nome = ?", (nome,))
-            nome_existe = cursor.fetchone()[0] > 0
-
-            if nome_existe:
+            if cursor.fetchone()[0] > 0:
                 nome_cliente.error_text = "Cliente já existe"
                 nome_cliente.update()
                 return
 
             if email:
                 cursor.execute("SELECT COUNT(*) FROM clientes WHERE email = ?", (email,))
-                email_existe = cursor.fetchone()[0] > 0
-
-                if email_existe:
+                if cursor.fetchone()[0] > 0:
                     email_cliente.error_text = "Email já existe"
                     email_cliente.update()
                     return
 
             cursor.execute("SELECT COUNT(*) FROM clientes WHERE telefone = ?", (tel,))
-            tel_existe = cursor.fetchone()[0] > 0
-
-            if tel_existe:
+            if cursor.fetchone()[0] > 0:
                 telefone_cliente.error_text = "Telefone já existe"
                 telefone_cliente.update()
                 return
@@ -490,19 +407,13 @@ class AdmWindow:
                     INSERT INTO clientes (nome, email, telefone)
                     VALUES (?, ?, ?)
                 """, (nome, email, tel))
-
                 conn.commit()
-
+                conn.close()
+                fechar_modal(modal, page)
+                self._atualizar_tabela_clientes()
             except Exception:
                 email_cliente.error_text = "Erro ao salvar"
                 email_cliente.update()
-                return
-
-            finally:
-                conn.close()
-
-            fechar_modal(modal, page)
-            self._atualizar_tabela_clientes()
 
         modal = ft.AlertDialog(
             modal=True,
@@ -519,8 +430,7 @@ class AdmWindow:
             ),
             actions=[
                 ft.TextButton("Salvar", style=salvar_style, on_click=salvar_modal),
-                ft.TextButton("Cancelar", style=cancelar_style,
-                              on_click=lambda e: fechar_modal(modal, page))
+                ft.TextButton("Cancelar", style=cancelar_style, on_click=lambda e: fechar_modal(modal, page))
             ],
             shape=ft.RoundedRectangleBorder(radius=7)
         )
@@ -534,30 +444,16 @@ class AdmWindow:
 
         produto = ft.TextField(
             label="Produto",
-            on_change=lambda e: (
-                validar_duplicado_generico(
-                    e,
-                    self.conectar,
-                    "produtos",
-                    "nome"
-                ),
-                limpar_erro(e)
-            )
+            on_change=lambda e: (validar_duplicado_generico(e, self.conectar, "produtos", "nome"), limpar_erro(e))
         )
         preco = ft.TextField(
             label="Preço Unitário",
             prefix_text="R$",
-            on_change=lambda e: (
-                formatar_valor(e),
-                limpar_erro(e)
-            )
+            on_change=lambda e: (formatar_valor(e), limpar_erro(e))
         )
         estoque = ft.TextField(
             label="Estoque",
-            on_change=lambda e: (
-                apenas_numeros(e),
-                limpar_erro(e)
-            )
+            on_change=lambda e: (apenas_numeros(e), limpar_erro(e))
         )
 
         def salvar_modal(e):
@@ -569,19 +465,13 @@ class AdmWindow:
                 return
 
             conn2, cursor2 = self.conectar()
+            cursor2.execute("SELECT id FROM produtos WHERE nome = ?", (nome,))
 
-            cursor2.execute(
-                "SELECT id FROM produtos WHERE nome = ?",
-                (nome,)
-            )
-            existe = cursor2.fetchone()
-
-            if existe:
-                produto.error_text = f"Produto já existe"
+            if cursor2.fetchone():
+                produto.error_text = "Produto já existe"
                 produto.update()
                 conn2.close()
                 return
-
             conn2.close()
 
             if produto.error_text:
@@ -593,17 +483,12 @@ class AdmWindow:
                     (nome, preco_valor, estoque_valor)
                 )
                 conn.commit()
-
+                conn.close()
+                fechar_modal(modal, page)
+                self._atualizar_tabela_estoque()
             except Exception:
                 produto.error_text = "Erro ao salvar"
                 produto.update()
-                return
-
-            finally:
-                conn.close()
-
-            fechar_modal(modal, page)
-            self._atualizar_tabela_estoque()
 
         modal = ft.AlertDialog(
             modal=True,
@@ -629,28 +514,17 @@ class AdmWindow:
         modal.open = True
         page.update()
 
-    def _contar_pedidos(self, status):
-        conn, cursor = self.conectar()
-        cursor.execute(
-            "SELECT COUNT(*) FROM pedidos WHERE status = ?",
-            (status,)
-        )
-        total = cursor.fetchone()[0]
-        conn.close()
-        return total
-
     def _pedidos_(self):
-        em_producao = self._contar_pedidos("Em Produção")
-        em_entrega = self._contar_pedidos("Em Entrega")
+        self.txt_em_producao = ft.Text("0", font_family="JosefinBold", size=26)
+        self.txt_em_entrega = ft.Text("0", font_family="JosefinBold", size=26)
+
         colunas_config = [
-            {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 190, "tipo": "int","editable": False},
+            {"nome": "Número Pedido", "campo": "numero_pedido", "largura": 190, "tipo": "int", "editable": False},
             {"nome": "Cliente", "campo": "cliente_nome", "largura": 150, "tipo": "str", "editable": False},
             {"nome": "Data Entrega", "campo": "data_entrega", "largura": 100, "tipo": "str", "editable": True,"on_change": formatar_data},
             {"nome": "Valor", "campo": "valor", "largura": 150, "tipo": "float", "editable": True,"on_change": formatar_valor},
             {"nome": "Status", "campo": "status", "largura": 200, "tipo": "str", "editable": False},
         ]
-        if not hasattr(self, 'filtro_pedidos'):
-            self.filtro_pedidos = ""
 
         tabela = criar_tabela_generica(
             instancia=self,
@@ -664,41 +538,15 @@ class AdmWindow:
             funcao_validar_editar=None
         )
 
+        atualizar_cards_pedidos(self)
+
         cards_estatisticas = ft.Row(
             spacing=20,
             alignment=ft.MainAxisAlignment.CENTER,
             controls=[
-                # ft.Container(
-                #     width=300,
-                #     height=100,
-                #     bgcolor="white",
-                #     border_radius=15,
-                #     padding=10,
-                #     border=ft.border.all(1, "#CBCBCB"),
-                #     content=ft.Row(
-                #         alignment=ft.MainAxisAlignment.START,
-                #         vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                #         spacing=15,
-                #         controls=[
-                #             ft.Container(ft.Image(src="loja.svg", width=50, height=50), margin=ft.margin.only(left=20)),
-                #             ft.Column(
-                #                 spacing=-10,
-                #                 alignment=ft.MainAxisAlignment.CENTER,
-                #                 controls=[
-                #                     ft.Text("47", font_family="JosefinBold", size=26),
-                #                     ft.Text("Pedidos", size=16, color="#B7B89F"),
-                #                 ],
-                #             ),
-                #         ],
-                #     ),
-                # ),
                 ft.Container(
-                    width=300,
-                    height=100,
-                    bgcolor="white",
-                    border_radius=15,
-                    padding=10,
-                    border=ft.border.all(1, "#CBCBCB"),
+                    width=300, height=100, bgcolor="white",
+                    border_radius=15, padding=10, border=ft.border.all(1, "#CBCBCB"),
                     content=ft.Row(
                         alignment=ft.MainAxisAlignment.START,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -707,23 +555,15 @@ class AdmWindow:
                             ft.Container(ft.Image(src="calendario.svg", width=50, height=50),
                                          margin=ft.margin.only(left=20)),
                             ft.Column(
-                                spacing=-10,
-                                alignment=ft.MainAxisAlignment.CENTER,
-                                controls=[
-                                    ft.Text(str(em_producao), font_family="JosefinBold", size=26),
-                                    ft.Text("Em Produção", size=16, color="#B7B89F"),
-                                ],
+                                spacing=-10, alignment=ft.MainAxisAlignment.CENTER,
+                                controls=[self.txt_em_producao, ft.Text("Em Produção", size=16, color="#B7B89F")],
                             ),
                         ],
                     ),
                 ),
                 ft.Container(
-                    width=300,
-                    height=100,
-                    bgcolor="white",
-                    border_radius=15,
-                    padding=10,
-                    border=ft.border.all(1, "#CBCBCB"),
+                    width=300, height=100, bgcolor="white",
+                    border_radius=15, padding=10, border=ft.border.all(1, "#CBCBCB"),
                     content=ft.Row(
                         alignment=ft.MainAxisAlignment.START,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -732,29 +572,23 @@ class AdmWindow:
                             ft.Container(ft.Image(src="caminhao.svg", width=50, height=50),
                                          margin=ft.margin.only(left=20)),
                             ft.Column(
-                                spacing=-10,
-                                alignment=ft.MainAxisAlignment.CENTER,
-                                controls=[
-                                    ft.Text(str(em_entrega), font_family="JosefinBold", size=26),
-                                    ft.Text("Em Entrega", size=16, color="#B7B89F"),
-                                ],
+                                spacing=-10, alignment=ft.MainAxisAlignment.CENTER,
+                                controls=[self.txt_em_entrega, ft.Text("Em Entrega", size=16, color="#B7B89F")],
                             ),
                         ],
                     ),
                 ),
             ],
         )
+
         return ft.Container(
-            expand=True,
-            bgcolor="#FDF4F5",
-            width=200,
+            expand=True, bgcolor="#FDF4F5", width=200,
             border_radius=ft.border_radius.only(top_right=20, top_left=20),
             alignment=ft.alignment.top_left,
             margin=ft.margin.only(top=10, left=5, right=10),
             padding=ft.padding.only(top=10, left=10, right=20, bottom=20),
             content=ft.Column(
-                spacing=20,
-                horizontal_alignment=ft.CrossAxisAlignment.START,
+                spacing=20, horizontal_alignment=ft.CrossAxisAlignment.START,
                 scroll=ft.ScrollMode.AUTO,
                 controls=[
                     ft.Text("Pedidos", font_family="JosefinBold", size=28),
@@ -762,19 +596,12 @@ class AdmWindow:
                     tabela["titulo"],
                     tabela["pesquisa"],
                     ft.Container(
-                        bgcolor="white",
-                        padding=10,
-                        border_radius=10,
+                        bgcolor="white", padding=10, border_radius=10,
                         border=ft.border.all(1, "#D2D2D2"),
-                        height=500,
-                        width=1000,
+                        height=500, width=1000,
                         content=ft.Column(
                             spacing=0,
-                            controls=[
-                                tabela["header"],
-                                tabela["scroll"],
-                                ft.Container(height=40)
-                            ]
+                            controls=[tabela["header"], tabela["scroll"], ft.Container(height=40)]
                         )
                     ),
                     ft.Container(height=10)
@@ -791,13 +618,9 @@ class AdmWindow:
         ]
 
         def validar_produto(vals):
-            nome = vals[0].strip()
-            preco = vals[1].replace(",", ".").strip()
-            estoque = vals[2].strip()
-
-            if not nome or not preco or not estoque:
+            nome, preco, estoque = vals[0].strip(), vals[1].replace(",", ".").strip(), vals[2].strip()
+            if not all([nome, preco, estoque]):
                 return False
-
             try:
                 float(preco)
                 int(estoque)
@@ -819,50 +642,28 @@ class AdmWindow:
 
         return ft.Container(
             padding=20,
-            content=ft.Column(
-                controls=[
-                    tabela["titulo"],
-                    tabela["pesquisa"],
-                    ft.Container(
-                        bgcolor="white",
-                        padding=10,
-                        border_radius=10,
-                        border=ft.border.all(1, "#D2D2D2"),
-                        height=500,
-                        width=1000,
-                        content=ft.Column(
-                            spacing=0,
-                            controls=[tabela["header"], tabela["scroll"]]
-                        )
-                    )
-                ]
-            )
+            content=ft.Column(controls=[
+                tabela["titulo"], tabela["pesquisa"],
+                ft.Container(
+                    bgcolor="white", padding=10, border_radius=10,
+                    border=ft.border.all(1, "#D2D2D2"),
+                    height=500, width=1000,
+                    content=ft.Column(spacing=0, controls=[tabela["header"], tabela["scroll"]])
+                )
+            ])
         )
 
     def _clientes_(self):
         colunas_config = [
             {"nome": "ID", "campo": "id", "largura": 50, "tipo": "int", "editable": False},
-            {"nome": "Nome", "campo": "nome", "largura": 200, "tipo": "text", "editable": True,
-             "on_change": lambda e, conectar_fn=self.conectar, tabela="clientes", campo="nome", item_id=None:
-             validar_duplicado_generico(e, conectar_fn, tabela, campo, item_id)
-             },
-            {"nome": "Email", "campo": "email", "largura": 250, "tipo": "text", "editable": True,
-             "on_change": lambda e, conectar_fn=self.conectar, tabela="clientes", campo="email", item_id=None:
-             validar_duplicado_generico(e, conectar_fn, tabela, campo, item_id)
-             },
-            {"nome": "Telefone", "campo": "telefone", "largura": 150, "tipo": "text", "editable": True,
-             "on_change": lambda e, conectar_fn=self.conectar, tabela="clientes", campo="telefone", item_id=None:
-             (formatar_telefone(e), validar_duplicado_generico(e, conectar_fn, tabela, campo, item_id))
-             },
+            {"nome": "Nome", "campo": "nome", "largura": 200, "tipo": "text", "editable": True,"on_change": validar_duplicado_generico},
+            {"nome": "Email", "campo": "email", "largura": 250, "tipo": "text", "editable": True,"on_change": validar_duplicado_generico},
+            {"nome": "Telefone", "campo": "telefone", "largura": 150, "tipo": "text", "editable": True,"on_change": validar_duplicado_generico},
             {"nome": "Criado em", "campo": "criado_em", "largura": 150, "tipo": "date", "editable": False},
         ]
 
         def validar_cliente(vals):
-            if not vals[0] or not vals[0].strip():
-                return False
-            if not vals[2] or not vals[2].strip():
-                return False
-            return True
+            return bool(vals[0] and vals[0].strip() and vals[2] and vals[2].strip())
 
         tabela = criar_tabela_generica(
             instancia=self,
@@ -878,42 +679,23 @@ class AdmWindow:
 
         return ft.Container(
             padding=20,
-            content=ft.Column(
-                controls=[
-                    tabela["titulo"],
-                    tabela["pesquisa"],
-                    ft.Container(
-                        bgcolor="white",
-                        padding=10,
-                        border_radius=10,
-                        border=ft.border.all(1, "#D2D2D2"),
-                        height=500,
-                        width=1000,
-                        content=ft.Column(
-                            spacing=0,
-                            controls=[tabela["header"], tabela["scroll"]]
-                        )
-                    )
-                ]
-            )
+            content=ft.Column(controls=[
+                tabela["titulo"], tabela["pesquisa"],
+                ft.Container(
+                    bgcolor="white", padding=10, border_radius=10,
+                    border=ft.border.all(1, "#D2D2D2"),
+                    height=500, width=1000,
+                    content=ft.Column(spacing=0, controls=[tabela["header"], tabela["scroll"]])
+                )
+            ])
         )
 
     def run(self, page: ft.Page):
         self.page = page
         self._adm_window_(page)
 
-        self.main_content = ft.Container(
-            expand=True,
-            content=self._pedidos_()
-        )
-
-        layout = ft.Row(
-            expand=True,
-            controls=[
-                self._menu_lateral_(page),
-                self.main_content,
-            ]
-        )
+        self.main_content = ft.Container(expand=True, content=self._pedidos_())
+        layout = ft.Row(expand=True, controls=[self._menu_lateral_(page), self.main_content])
 
         page.add(layout)
         set_fab(page, "#E47B12", self._abrir_modal_pedido_)
